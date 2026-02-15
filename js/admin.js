@@ -1751,6 +1751,7 @@ function initAmbulanceMap() {
  */
 async function refreshMapPositions() {
     var vehicleListEl = document.getElementById('map-vehicle-list');
+    var BASE_LOCATION = { lat: 50.0919, lng: 18.2196 };
 
     try {
         // Pokaż loading
@@ -1758,12 +1759,14 @@ async function refreshMapPositions() {
             vehicleListEl.innerHTML = '<div class="map-no-data"><span class="material-icons-round" style="animation:spin 1s linear infinite;">refresh</span> Ładowanie...</div>';
         }
 
+        console.log('[Mapa] Pobieranie pozycji karetek...');
         var result = await apiGet({ action: 'getAmbulancePositions' });
+        console.log('[Mapa] Odpowiedź API:', result);
 
         // Jeśli API zwróciło null (błąd)
         if (!result) {
-            if (vehicleListEl) vehicleListEl.innerHTML = '<div class="map-no-data">Nie udało się połączyć z API.<br><small style="color:#999;">Sprawdź konsolę (F12) i logi GAS.</small></div>';
-            console.error('getAmbulancePositions: API returned null');
+            if (vehicleListEl) vehicleListEl.innerHTML = '<div class="map-no-data"><span class="material-icons-round">cloud_off</span><br>Nie udało się połączyć z API.<br><small style="color:#999;">Sprawdź konsolę (F12).</small></div>';
+            console.error('[Mapa] API returned null - sprawdź czy GAS deployment jest aktualny');
             return;
         }
 
@@ -1779,10 +1782,7 @@ async function refreshMapPositions() {
             positions = result.data;
         }
 
-        // Debug info w konsoli
-        if (debugInfo) {
-            console.log('Map debug:', debugInfo);
-        }
+        console.log('[Mapa] Znaleziono pojazdów:', positions.length, debugInfo ? ('GPS: ' + debugInfo.gpsPositionsFound) : '');
 
         // Wyczyść stare markery
         ambulanceMarkers.forEach(function(m) { m.setMap(null); });
@@ -1793,25 +1793,35 @@ async function refreshMapPositions() {
             return;
         }
 
+        if (positions.length === 0) {
+            if (vehicleListEl) vehicleListEl.innerHTML = '<div class="map-no-data"><span class="material-icons-round">local_shipping</span><br>Brak karetek w systemie.<br><small>Sprawdź arkusz KARETKI w Google Sheets.</small></div>';
+            return;
+        }
+
         var listHtml = '';
         var bounds = new google.maps.LatLngBounds();
-        var hasPositions = false;
+        var gpsActiveCount = 0;
+        bounds.extend(BASE_LOCATION);
 
-        // Dodaj bazę do bounds
-        bounds.extend({ lat: 50.0919, lng: 18.2196 });
-
-        if (positions.length === 0) {
-            var dbgMsg = debugInfo ? '<br><small style="color:#999;">Debug: arkusz=' + (debugInfo.karatkiCount||0) + ', gps=' + (debugInfo.gpsPositionsFound||0) + (debugInfo.gpsError ? ', err=' + debugInfo.gpsError : '') + '</small>' : '';
-            if (vehicleListEl) vehicleListEl.innerHTML = '<div class="map-no-data">Brak karetek w systemie.<br>Sprawdź arkusz KARETKI.' + dbgMsg + '</div>';
-            return;
+        // Info banner o GPS
+        var noGpsVehicles = positions.filter(function(p) { return !p.lat || !p.lng; });
+        if (noGpsVehicles.length > 0) {
+            listHtml += '<div class="map-gps-banner">' +
+                '<span class="material-icons-round" style="font-size:18px;color:#f59e0b;">info</span>' +
+                '<div>' +
+                    '<strong>' + noGpsVehicles.length + '/' + positions.length + ' bez GPS</strong><br>' +
+                    '<small>Uzupełnij GPS_Cartrack_ID lub rejestrację w arkuszu KARETKI</small>' +
+                '</div>' +
+            '</div>';
         }
 
         positions.forEach(function(pos) {
             var statusColor = getAmbulanceStatusColor(pos.workerStatus || pos.status);
             var statusLabel = pos.workerStatus || pos.status || 'Nieznany';
+            var hasGps = pos.lat && pos.lng;
 
             // Sidebar list item
-            listHtml += '<div class="map-vehicle-card" data-nr="' + pos.nr + '" onclick="focusAmbulance(\'' + pos.nr + '\')">' +
+            listHtml += '<div class="map-vehicle-card' + (hasGps ? '' : ' no-gps') + '" data-nr="' + pos.nr + '" onclick="focusAmbulance(\'' + pos.nr + '\')">' +
                 '<div class="map-vehicle-header">' +
                     '<span class="map-vehicle-nr">Karetka ' + pos.nr + '</span>' +
                     '<span class="map-vehicle-status" style="background:' + statusColor + '20; color:' + statusColor + ';">' +
@@ -1821,48 +1831,59 @@ async function refreshMapPositions() {
                 '<div class="map-vehicle-info">' +
                     (pos.worker ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">person</span> ' + escHtml(pos.worker) + '</div>' : '<div style="color:#999;">Brak przypisanego pracownika</div>') +
                     (pos.registration ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">directions_car</span> ' + escHtml(pos.registration) + '</div>' : '') +
-                    (pos.lat && pos.lng ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:#22c55e;">gps_fixed</span> GPS aktywny</div>' : '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:#999;">gps_off</span> Brak GPS' + (pos.gpsId ? '' : ' (brak GPS_Cartrack_ID)') + '</div>') +
+                    (hasGps ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:#22c55e;">gps_fixed</span> GPS aktywny</div>' : '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:#f59e0b;">gps_off</span> Brak GPS' + (!pos.gpsId ? ' (brak ID)' : '') + '</div>') +
                     (pos.address ? '<div class="map-vehicle-address"><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">location_on</span> ' + escHtml(pos.address) + '</div>' : '') +
                     (pos.speed > 0 ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">speed</span> ' + pos.speed + ' km/h</div>' : '') +
                 '</div>' +
             '</div>';
 
-            // Marker na mapie (tylko jeśli mamy współrzędne)
-            if (pos.lat && pos.lng) {
-                hasPositions = true;
-                var latLng = { lat: parseFloat(pos.lat), lng: parseFloat(pos.lng) };
-                bounds.extend(latLng);
-
-                var marker = new google.maps.Marker({
-                    position: latLng,
-                    map: ambulanceMap,
-                    title: 'Karetka ' + pos.nr + (pos.worker ? ' - ' + pos.worker : ''),
-                    icon: createAmbulanceIcon(statusColor, pos.heading || 0),
-                    zIndex: pos.workerStatus === 'W trasie' ? 10 : 5
-                });
-
-                marker._vehicleNr = pos.nr;
-                marker._vehicleData = pos;
-                var mStatusColor = statusColor;
-                var mStatusLabel = statusLabel;
-
-                marker.addListener('click', function() {
-                    var p = this._vehicleData;
-                    var content = '<div style="font-family:Inter,sans-serif;min-width:200px;padding:4px;">' +
-                        '<div style="font-weight:700;font-size:15px;margin-bottom:8px;">Karetka ' + p.nr + '</div>' +
-                        (p.registration ? '<div style="margin-bottom:4px;color:#666;"><strong>Rejestracja:</strong> ' + p.registration + '</div>' : '') +
-                        (p.worker ? '<div style="margin-bottom:4px;"><strong>Pracownik:</strong> ' + p.worker + '</div>' : '') +
-                        '<div style="margin-bottom:4px;"><strong>Status:</strong> <span style="color:' + mStatusColor + ';font-weight:600;">' + mStatusLabel + '</span></div>' +
-                        (p.address ? '<div style="margin-bottom:4px;"><strong>Lokalizacja:</strong> ' + p.address + '</div>' : '') +
-                        (p.speed > 0 ? '<div style="margin-bottom:4px;"><strong>Prędkość:</strong> ' + p.speed + ' km/h</div>' : '') +
-                        (p.lastUpdate ? '<div style="font-size:11px;color:#999;margin-top:6px;">Aktualizacja: ' + p.lastUpdate + '</div>' : '') +
-                    '</div>';
-                    mapInfoWindow.setContent(content);
-                    mapInfoWindow.open(ambulanceMap, this);
-                });
-
-                ambulanceMarkers.push(marker);
+            // Pozycja markera: GPS lub baza (z offsetem żeby markery się nie nakładały)
+            var markerLat, markerLng;
+            if (hasGps) {
+                markerLat = parseFloat(pos.lat);
+                markerLng = parseFloat(pos.lng);
+                gpsActiveCount++;
+            } else {
+                // Pokaż przy bazie z lekkim offsetem
+                markerLat = BASE_LOCATION.lat + (pos.nr - 2) * 0.002;
+                markerLng = BASE_LOCATION.lng + 0.005;
             }
+
+            var latLng = { lat: markerLat, lng: markerLng };
+            bounds.extend(latLng);
+
+            var marker = new google.maps.Marker({
+                position: latLng,
+                map: ambulanceMap,
+                title: 'Karetka ' + pos.nr + (pos.worker ? ' - ' + pos.worker : '') + (hasGps ? '' : ' (baza)'),
+                icon: hasGps ? createAmbulanceIcon(statusColor, pos.heading || 0) : createAmbulanceIconNoGps(statusColor),
+                zIndex: hasGps ? 10 : 3,
+                opacity: hasGps ? 1.0 : 0.7
+            });
+
+            marker._vehicleNr = pos.nr;
+            marker._vehicleData = pos;
+            var mStatusColor = statusColor;
+            var mStatusLabel = statusLabel;
+            var mHasGps = hasGps;
+
+            marker.addListener('click', function() {
+                var p = this._vehicleData;
+                var content = '<div style="font-family:Inter,sans-serif;min-width:200px;padding:4px;">' +
+                    '<div style="font-weight:700;font-size:15px;margin-bottom:8px;">Karetka ' + p.nr + '</div>' +
+                    (!mHasGps ? '<div style="margin-bottom:8px;padding:6px 10px;background:#fff7ed;border-radius:6px;font-size:12px;color:#92400e;"><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">gps_off</span> Pozycja przybliżona (baza)</div>' : '') +
+                    (p.registration ? '<div style="margin-bottom:4px;color:#666;"><strong>Rejestracja:</strong> ' + p.registration + '</div>' : '') +
+                    (p.worker ? '<div style="margin-bottom:4px;"><strong>Pracownik:</strong> ' + p.worker + '</div>' : '') +
+                    '<div style="margin-bottom:4px;"><strong>Status:</strong> <span style="color:' + mStatusColor + ';font-weight:600;">' + mStatusLabel + '</span></div>' +
+                    (p.address ? '<div style="margin-bottom:4px;"><strong>Lokalizacja:</strong> ' + p.address + '</div>' : '') +
+                    (p.speed > 0 ? '<div style="margin-bottom:4px;"><strong>Prędkość:</strong> ' + p.speed + ' km/h</div>' : '') +
+                    (p.lastUpdate ? '<div style="font-size:11px;color:#999;margin-top:6px;">Aktualizacja: ' + p.lastUpdate + '</div>' : '') +
+                '</div>';
+                mapInfoWindow.setContent(content);
+                mapInfoWindow.open(ambulanceMap, this);
+            });
+
+            ambulanceMarkers.push(marker);
         });
 
         if (vehicleListEl) {
@@ -1870,17 +1891,18 @@ async function refreshMapPositions() {
         }
 
         // Dopasuj widok mapy
-        if (hasPositions && ambulanceMap) {
+        if (ambulanceMap) {
             ambulanceMap.fitBounds(bounds, { padding: 60 });
-            // Poczekaj aż fitBounds się zakończy przed sprawdzeniem zoom
             google.maps.event.addListenerOnce(ambulanceMap, 'idle', function() {
                 if (ambulanceMap.getZoom() > 15) ambulanceMap.setZoom(15);
             });
         }
 
+        console.log('[Mapa] Wyświetlono ' + positions.length + ' karetek (' + gpsActiveCount + ' z GPS)');
+
     } catch (error) {
-        console.error('Błąd odświeżania mapy:', error);
-        if (vehicleListEl) vehicleListEl.innerHTML = '<div class="map-no-data">Błąd: ' + error.message + '</div>';
+        console.error('[Mapa] Błąd:', error);
+        if (vehicleListEl) vehicleListEl.innerHTML = '<div class="map-no-data"><span class="material-icons-round">error</span><br>Błąd: ' + error.message + '</div>';
     }
 }
 
@@ -1914,6 +1936,21 @@ function createAmbulanceIcon(color, heading) {
         scale: 1.3,
         anchor: new google.maps.Point(11.5, 11.5),
         rotation: heading || 0
+    };
+}
+
+/**
+ * Tworzy ikonę karetki BEZ GPS (okrąg z ?)
+ */
+function createAmbulanceIconNoGps(color) {
+    return {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 14,
+        fillColor: color,
+        fillOpacity: 0.3,
+        strokeColor: color,
+        strokeWeight: 2,
+        strokeOpacity: 0.6
     };
 }
 
