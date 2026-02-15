@@ -1760,6 +1760,13 @@ async function refreshMapPositions() {
 
         var result = await apiGet({ action: 'getAmbulancePositions' });
 
+        // Jeśli API zwróciło null (błąd)
+        if (!result) {
+            if (vehicleListEl) vehicleListEl.innerHTML = '<div class="map-no-data">Nie udało się połączyć z API.<br><small style="color:#999;">Sprawdź konsolę (F12) i logi GAS.</small></div>';
+            console.error('getAmbulancePositions: API returned null');
+            return;
+        }
+
         // result = {vehicles: [...], debug: {...}} lub tablica (stary format)
         var positions = [];
         var debugInfo = null;
@@ -1794,7 +1801,8 @@ async function refreshMapPositions() {
         bounds.extend({ lat: 50.0919, lng: 18.2196 });
 
         if (positions.length === 0) {
-            if (vehicleListEl) vehicleListEl.innerHTML = '<div class="map-no-data">Brak karetek w systemie.<br>Sprawdź arkusz KARETKI.</div>';
+            var dbgMsg = debugInfo ? '<br><small style="color:#999;">Debug: arkusz=' + (debugInfo.karatkiCount||0) + ', gps=' + (debugInfo.gpsPositionsFound||0) + (debugInfo.gpsError ? ', err=' + debugInfo.gpsError : '') + '</small>' : '';
+            if (vehicleListEl) vehicleListEl.innerHTML = '<div class="map-no-data">Brak karetek w systemie.<br>Sprawdź arkusz KARETKI.' + dbgMsg + '</div>';
             return;
         }
 
