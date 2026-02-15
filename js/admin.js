@@ -279,6 +279,7 @@ function openNewOrderForContractor(contractor) {
  * Auto-obliczanie trasy z Google Maps po wpisaniu adresów
  */
 var autoRouteTimeout = null;
+var lastAutoRouteKey = '';
 
 function initAutoRouteCalc() {
     var fromInput = document.getElementById('f-from');
@@ -286,24 +287,20 @@ function initAutoRouteCalc() {
 
     if (!fromInput || !toInput) return;
 
-    // Nasłuchuj na zmianę wartości (po autocomplete lub ręcznie)
     function scheduleAutoCalc() {
         clearTimeout(autoRouteTimeout);
         autoRouteTimeout = setTimeout(function() {
+            var key = fromInput.value.trim() + '|' + toInput.value.trim();
+            if (key === lastAutoRouteKey) return;
+            lastAutoRouteKey = key;
             autoCalcRoute();
-        }, 800);
+        }, 600);
     }
 
     fromInput.addEventListener('change', scheduleAutoCalc);
     toInput.addEventListener('change', scheduleAutoCalc);
-
-    // Dodaj też listener na place_changed z Autocomplete (bardziej precyzyjny)
-    if (typeof google !== 'undefined' && google.maps && google.maps.places) {
-        // Autocomplete listeners dodane w initAddressAutocomplete
-        // ale potrzebujemy też reagować na ich place_changed
-        fromInput.addEventListener('blur', scheduleAutoCalc);
-        toInput.addEventListener('blur', scheduleAutoCalc);
-    }
+    fromInput.addEventListener('blur', scheduleAutoCalc);
+    toInput.addEventListener('blur', scheduleAutoCalc);
 }
 
 function autoCalcRoute() {
@@ -355,8 +352,6 @@ function autoCalcRoute() {
         var timeStr = hours > 0 ? hours + 'h ' + mins + 'min' : mins + ' min';
 
         infoDiv.className = 'route-auto-info';
-        document.getElementById('auto-route-km').textContent = totalKm;
-        document.getElementById('auto-route-time').textContent = timeStr;
         infoDiv.querySelector('.route-auto-result').innerHTML =
             '<span class="material-icons-round">route</span>' +
             '<span>Trasa: <strong>' + totalKm + '</strong> km | <strong>' + timeStr + '</strong></span>';
