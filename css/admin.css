@@ -929,6 +929,12 @@ body {
     .form-row { flex-wrap: wrap; }
 }
 
+@media (max-width: 1200px) {
+    .workers-detail-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+}
+
 /* Google Places Autocomplete */
 .pac-container {
     z-index: 10000;
@@ -1476,11 +1482,538 @@ body {
 }
 
 @media (max-width: 768px) {
-    .sidebar { transform: translateX(-100%); }
-    .sidebar.open { transform: translateX(0); }
-    .main-content { margin-left: 0; }
-    .menu-toggle { display: block; }
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-    .filters-row { flex-wrap: wrap; }
-    .map-controls { flex-direction: column; align-items: flex-start; }
+    /* --- SIDEBAR OVERLAY --- */
+    .sidebar {
+        transform: translateX(-100%);
+        width: 280px;
+        box-shadow: none;
+    }
+    .sidebar.open {
+        transform: translateX(0);
+        box-shadow: 8px 0 30px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Sidebar backdrop */
+    .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 99;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .sidebar-backdrop.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* --- MAIN CONTENT --- */
+    .main-content {
+        margin-left: 0;
+        min-width: 0;
+    }
+
+    .menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .menu-toggle:active {
+        background: var(--bg-subtle);
+    }
+
+    /* --- TOPBAR --- */
+    .topbar {
+        padding: 0 16px;
+        padding-top: env(safe-area-inset-top, 0px);
+        height: calc(var(--topbar-height) + env(safe-area-inset-top, 0px));
+    }
+
+    .page-title {
+        font-size: 17px;
+    }
+
+    .current-time {
+        font-size: 12px;
+    }
+
+    /* --- CONTENT AREA --- */
+    .content-area {
+        padding: 16px 12px;
+    }
+
+    /* --- STATS GRID --- */
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .stat-card {
+        padding: 16px;
+    }
+
+    .stat-card-header {
+        margin-bottom: 10px;
+    }
+
+    .stat-icon {
+        width: 36px;
+        height: 36px;
+    }
+    .stat-icon .material-icons-round {
+        font-size: 20px;
+    }
+
+    .stat-value {
+        font-size: 24px;
+    }
+
+    .stat-label {
+        font-size: 11px;
+    }
+
+    /* --- PANELS --- */
+    .panel {
+        padding: 16px;
+        border-radius: 10px;
+        margin-bottom: 16px;
+    }
+
+    .panel-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .panel-header h2 {
+        font-size: 16px;
+    }
+
+    .panel-header .btn-sm {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* --- WORKERS GRID --- */
+    .workers-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .worker-card {
+        padding: 12px;
+    }
+
+    /* --- FILTERS --- */
+    .filters-row {
+        flex-wrap: wrap;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .filter-input {
+        flex: 1;
+        min-width: calc(50% - 4px);
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+
+    .filters-row .btn-sm {
+        flex: 1;
+        min-width: calc(50% - 4px);
+        justify-content: center;
+        padding: 10px 12px;
+    }
+
+    /* --- TABLES --- */
+    .orders-table-container,
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0 -16px;
+        padding: 0 16px;
+    }
+
+    /* Scroll hint gradient */
+    .orders-table-container::after,
+    .table-container::after {
+        content: '';
+        position: sticky;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 24px;
+        background: linear-gradient(to left, rgba(255,255,255,0.9), transparent);
+        pointer-events: none;
+        flex-shrink: 0;
+    }
+
+    .data-table {
+        font-size: 12px;
+        min-width: 600px;
+    }
+
+    .data-table th {
+        padding: 10px 8px;
+        font-size: 10px;
+    }
+
+    .data-table td {
+        padding: 10px 8px;
+        white-space: nowrap;
+    }
+
+    .data-table td:nth-child(n+3) {
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* --- FORMS --- */
+    .form-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .form-group.flex-2 {
+        flex: auto;
+    }
+
+    .order-form select,
+    .order-form input[type="text"],
+    .order-form input[type="tel"],
+    .order-form input[type="date"],
+    .order-form input[type="time"],
+    .order-form input[type="number"],
+    .order-form textarea,
+    .calculator-form select,
+    .calculator-form input,
+    .calculator-form textarea {
+        padding: 12px 14px;
+        font-size: 16px; /* Prevent iOS zoom */
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .form-actions .btn-outline,
+    .form-actions .btn-primary-lg {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .btn-primary-lg {
+        padding: 14px 20px;
+        font-size: 15px;
+        border-radius: 10px;
+    }
+
+    .btn-outline {
+        padding: 14px 20px;
+        border-radius: 10px;
+    }
+
+    /* Route points */
+    .route-point {
+        gap: 8px;
+    }
+    .route-marker {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+    }
+    .route-point::before {
+        left: 15px;
+    }
+    .btn-add-stop {
+        margin-left: 40px;
+    }
+    .order-form .btn-add-stop {
+        margin-left: 40px;
+    }
+
+    /* Section titles */
+    .form-section-title {
+        font-size: 12px;
+        margin: 20px 0 10px;
+    }
+
+    /* Rate preview */
+    .rate-preview {
+        margin-top: 12px;
+    }
+
+    .rate-info {
+        font-size: 13px;
+        flex-wrap: wrap;
+    }
+
+    /* Route summary */
+    .order-route-summary {
+        padding: 12px;
+    }
+
+    .order-route-total {
+        font-size: 16px;
+        flex-direction: column;
+        gap: 4px;
+        text-align: center;
+    }
+
+    .order-route-total strong {
+        font-size: 20px;
+    }
+
+    /* --- MODAL FULLSCREEN --- */
+    .modal-overlay {
+        padding: 0;
+        align-items: flex-end;
+    }
+
+    .modal {
+        max-width: 100%;
+        max-height: 100vh;
+        max-height: 100dvh;
+        border-radius: 16px 16px 0 0;
+        height: 95vh;
+        height: 95dvh;
+    }
+
+    @keyframes modalIn {
+        from { opacity: 0; transform: translateY(100%); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .modal-header {
+        padding: 14px 16px;
+        padding-top: calc(env(safe-area-inset-top, 0px) + 14px);
+    }
+    .modal-header h3 {
+        font-size: 16px;
+    }
+
+    .modal-body {
+        padding: 16px;
+    }
+
+    .modal-body .form-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .modal-body input[type="text"],
+    .modal-body input[type="tel"],
+    .modal-body input[type="date"],
+    .modal-body input[type="time"],
+    .modal-body input[type="number"],
+    .modal-body select,
+    .modal-body textarea {
+        padding: 12px 14px;
+        font-size: 16px; /* Prevent iOS zoom */
+    }
+
+    .modal-footer {
+        padding: 12px 16px;
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    }
+
+    .modal-footer .btn-secondary,
+    .modal-footer .btn-primary-lg {
+        flex: 1;
+        justify-content: center;
+    }
+
+    /* --- WORKERS DETAIL --- */
+    .workers-detail-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .worker-detail-card {
+        padding: 16px;
+    }
+
+    .worker-detail-avatar {
+        width: 48px;
+        height: 48px;
+        font-size: 18px;
+    }
+
+    .worker-detail-stats {
+        gap: 6px;
+    }
+
+    .worker-stat {
+        padding: 8px 4px;
+    }
+
+    .worker-stat-value {
+        font-size: 16px;
+    }
+
+    /* --- PATIENTS --- */
+    .patients-search-wrap {
+        width: 100%;
+    }
+
+    .patients-search-input {
+        width: 100%;
+        font-size: 16px; /* Prevent iOS zoom */
+    }
+
+    .patients-stats {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .patients-stat {
+        flex: 1;
+        min-width: calc(50% - 4px);
+        justify-content: center;
+    }
+
+    /* --- MAP --- */
+    .map-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .map-controls-left {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .map-legend {
+        justify-content: flex-start;
+        gap: 12px;
+    }
+
+    .map-wrapper {
+        flex-direction: column;
+        height: auto;
+        min-height: 0;
+    }
+
+    .ambulance-map {
+        height: 50vh;
+        min-height: 300px;
+        border-radius: 10px;
+    }
+
+    .map-sidebar {
+        width: 100%;
+        max-height: none;
+        border-radius: 10px;
+    }
+
+    .map-vehicle-list {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .map-vehicle-card {
+        padding: 10px;
+    }
+
+    .map-vehicle-address {
+        max-width: 100%;
+    }
+
+    /* --- CALCULATOR --- */
+    .calc-result {
+        padding: 16px;
+    }
+
+    .calc-result-row {
+        font-size: 13px;
+    }
+
+    .calc-result-row.total {
+        font-size: 18px;
+    }
+
+    /* --- REPORTS --- */
+    #view-reports .form-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    #view-reports .form-group[style*="align-self"] {
+        align-self: stretch !important;
+    }
+
+    #view-reports .btn-sm {
+        width: 100%;
+        justify-content: center;
+        padding: 12px;
+    }
+
+    /* --- TOAST --- */
+    .toast {
+        left: 12px;
+        right: 12px;
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        max-width: none;
+        border-radius: 10px;
+    }
+
+    /* --- ROUTE LEGS --- */
+    .route-leg {
+        font-size: 12px;
+        padding: 6px 8px;
+    }
+    .route-leg-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* Extra small phones */
+@media (max-width: 380px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+    }
+
+    .stat-card-header {
+        margin-bottom: 0;
+    }
+
+    .stat-value {
+        font-size: 22px;
+    }
+
+    .content-area {
+        padding: 12px 8px;
+    }
+
+    .panel {
+        padding: 12px;
+    }
+
+    .topbar {
+        padding: 0 12px;
+    }
+
+    .page-title {
+        font-size: 15px;
+    }
 }

@@ -60,6 +60,9 @@ function showView(viewId) {
 
     // Zamknij sidebar na mobile
     document.getElementById('sidebar').classList.remove('open');
+    var bd = document.getElementById('sidebar-backdrop');
+    if (bd) bd.classList.remove('visible');
+    document.body.style.overflow = '';
 }
 
 // ============================================================
@@ -67,6 +70,34 @@ function showView(viewId) {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Sidebar mobile toggle + backdrop ---
+    var sidebarEl = document.getElementById('sidebar');
+    var backdropEl = document.getElementById('sidebar-backdrop');
+
+    function openSidebar() {
+        sidebarEl.classList.add('open');
+        if (backdropEl) backdropEl.classList.add('visible');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeSidebar() {
+        sidebarEl.classList.remove('open');
+        if (backdropEl) backdropEl.classList.remove('visible');
+        document.body.style.overflow = '';
+    }
+
+    document.getElementById('menu-toggle').addEventListener('click', () => {
+        if (sidebarEl.classList.contains('open')) {
+            closeSidebar();
+        } else {
+            openSidebar();
+        }
+    });
+
+    if (backdropEl) {
+        backdropEl.addEventListener('click', closeSidebar);
+    }
+
     // Nawigacja - główne elementy (z data-view)
     document.querySelectorAll('.nav-item[data-view]').forEach(item => {
         item.addEventListener('click', (e) => {
@@ -95,12 +126,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Podświetl wybrany element
             document.querySelectorAll('.nav-sub-item').forEach(s => s.classList.remove('active'));
             item.classList.add('active');
-        });
-    });
 
-    // Menu toggle (mobile)
-    document.getElementById('menu-toggle').addEventListener('click', () => {
-        document.getElementById('sidebar').classList.toggle('open');
+            // Zamknij sidebar na mobile
+            closeSidebar();
+        });
     });
 
     // Zegar

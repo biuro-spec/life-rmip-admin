@@ -2,12 +2,15 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#b51c1c">
     <title>Life RMiP - Panel Dyspozytorski</title>
     <link rel="icon" type="image/png" href="assets/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link rel="stylesheet" href="css/admin.css?v=14">
+    <link rel="stylesheet" href="css/admin.css?v=15">
 </head>
 <body>
     <!-- Sidebar -->
@@ -85,6 +88,9 @@
             <button class="logout-link" id="admin-logout">Wyloguj</button>
         </div>
     </aside>
+
+    <!-- Sidebar backdrop (mobile) -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
     <!-- Main Content -->
     <main class="main-content">
@@ -959,6 +965,6 @@
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA0tTZTp2bZBb2cbbSBcnxEoPXERnfx1w8&libraries=places&language=pl"></script>
     <script src="js/utils.js"></script>
     <script src="js/api.js"></script>
-    <script src="js/admin.js?v=14"></script>
+    <script src="js/admin.js?v=15"></script>
 </body>
 </html>
