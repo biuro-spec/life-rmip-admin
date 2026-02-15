@@ -129,8 +129,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Google Places Autocomplete na polach adresowych
     initAddressAutocomplete();
 
-    // Auto-obliczanie trasy po zmianie adresów
-    initAutoRouteCalc();
+    // Kontrahent change -> auto-baza
+    document.getElementById('f-contractor').addEventListener('change', function() {
+        var c = this.value;
+        if (c && c !== 'NFZ') {
+            document.getElementById('f-base').value = 'Rudzka 14, Racibórz';
+            document.getElementById('f-return-base').checked = true;
+        }
+    });
 
     // Załaduj dashboard
     loadDashboard();
@@ -267,6 +273,15 @@ function openNewOrderForContractor(contractor) {
     setSelectValue('f-contractor', contractor);
     updateRatePreview();
 
+    // Auto-baza dla non-NFZ
+    if (contractor !== 'NFZ') {
+        document.getElementById('f-base').value = 'Rudzka 14, Racibórz';
+        document.getElementById('f-return-base').checked = true;
+    } else {
+        document.getElementById('f-base').value = '';
+        document.getElementById('f-return-base').checked = false;
+    }
+
     // Ustaw tytuł
     document.getElementById('page-title').textContent = 'Nowe zlecenie — ' + contractor;
 
@@ -275,87 +290,170 @@ function openNewOrderForContractor(contractor) {
     document.getElementById('nav-new-order-sub').classList.add('open');
 }
 
-/**
- * Auto-obliczanie trasy z Google Maps po wpisaniu adresów
- */
-var autoRouteTimeout = null;
-var lastAutoRouteKey = '';
+// ============================================================
+// TRASA W FORMULARZU ZLECENIA (wieloprzystankowa)
+// ============================================================
 
-function initAutoRouteCalc() {
-    var fromInput = document.getElementById('f-from');
-    var toInput = document.getElementById('f-to');
+var orderStopCounter = 1;
 
-    if (!fromInput || !toInput) return;
-
-    function scheduleAutoCalc() {
-        clearTimeout(autoRouteTimeout);
-        autoRouteTimeout = setTimeout(function() {
-            var key = fromInput.value.trim() + '|' + toInput.value.trim();
-            if (key === lastAutoRouteKey) return;
-            lastAutoRouteKey = key;
-            autoCalcRoute();
-        }, 600);
-    }
-
-    fromInput.addEventListener('change', scheduleAutoCalc);
-    toInput.addEventListener('change', scheduleAutoCalc);
-    fromInput.addEventListener('blur', scheduleAutoCalc);
-    toInput.addEventListener('blur', scheduleAutoCalc);
+function addOrderStop() {
+    orderStopCounter++;
+    var container = document.getElementById('f-stops');
+    var div = document.createElement('div');
+    div.className = 'route-point';
+    div.setAttribute('data-stop', orderStopCounter);
+    div.innerHTML =
+        '<div class="route-marker stop">' + orderStopCounter + '</div>' +
+        '<div class="form-group" style="flex:1;">' +
+            '<label class="form-label">Przystanek ' + orderStopCounter + '</label>' +
+            '<input type="text" class="f-stop-input" placeholder="Wpisz adres...">' +
+        '</div>' +
+        '<button type="button" class="btn-remove-stop" onclick="removeOrderStop(this)" title="Usuń">' +
+            '<span class="material-icons-round">close</span>' +
+        '</button>';
+    container.appendChild(div);
+    attachAutocomplete(div.querySelector('.f-stop-input'));
 }
 
-function autoCalcRoute() {
-    var from = document.getElementById('f-from').value.trim();
-    var to = document.getElementById('f-to').value.trim();
-    var infoDiv = document.getElementById('route-auto-info');
+function removeOrderStop(btn) {
+    var point = btn.closest('.route-point');
+    point.remove();
+    renumberOrderStops();
+}
 
-    if (!from || !to || from.length < 5 || to.length < 5) {
-        infoDiv.style.display = 'none';
+function renumberOrderStops() {
+    var stops = document.querySelectorAll('#f-stops .route-point');
+    stops.forEach(function(stop, i) {
+        var num = i + 1;
+        stop.querySelector('.route-marker').textContent = num;
+        stop.querySelector('.form-label').textContent = 'Przystanek ' + num;
+    });
+    orderStopCounter = stops.length;
+}
+
+/**
+ * Oblicz trasę z Google Maps dla formularza zlecenia
+ */
+function calcOrderRoute() {
+    var base = document.getElementById('f-base').value.trim();
+    var returnToBase = document.getElementById('f-return-base').checked;
+    var btn = document.getElementById('btn-order-route');
+    var info = document.getElementById('order-route-info');
+    var legsDiv = document.getElementById('order-route-legs');
+    var summary = document.getElementById('order-route-summary');
+
+    if (!base) {
+        showToast('Wpisz adres bazy', 'error');
+        return;
+    }
+
+    // Zbierz przystanki
+    var stopInputs = document.querySelectorAll('.f-stop-input');
+    var stops = [];
+    stopInputs.forEach(function(input) {
+        if (input.value.trim()) stops.push(input.value.trim());
+    });
+
+    if (stops.length === 0) {
+        showToast('Dodaj co najmniej 1 przystanek', 'error');
         return;
     }
 
     if (typeof google === 'undefined' || !google.maps) {
+        showToast('Google Maps niedostępne', 'error');
         return;
     }
 
-    // Pokaż "obliczanie..."
-    infoDiv.style.display = 'block';
-    infoDiv.className = 'route-auto-info loading';
-    infoDiv.querySelector('.route-auto-result').innerHTML =
-        '<span class="material-icons-round">hourglass_top</span>' +
-        '<span>Obliczanie trasy...</span>';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons-round">hourglass_top</span> Obliczanie trasy...';
+    info.style.display = 'none';
+    legsDiv.style.display = 'none';
+
+    var origin = base;
+    var destination = returnToBase ? base : stops[stops.length - 1];
+    var waypoints = [];
+
+    if (returnToBase) {
+        stops.forEach(function(s) {
+            waypoints.push({ location: s, stopover: true });
+        });
+    } else {
+        for (var i = 0; i < stops.length - 1; i++) {
+            waypoints.push({ location: stops[i], stopover: true });
+        }
+    }
 
     var directionsService = new google.maps.DirectionsService();
     directionsService.route({
-        origin: from,
-        destination: to,
+        origin: origin,
+        destination: destination,
+        waypoints: waypoints,
         travelMode: 'DRIVING',
         region: 'pl'
     }, function(response, status) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round">route</span> Oblicz trasę z Google Maps';
+
         if (status !== 'OK') {
-            infoDiv.style.display = 'none';
+            showToast('Błąd Google Maps: ' + status, 'error');
             return;
         }
 
         var route = response.routes[0];
         var totalMeters = 0;
         var totalSeconds = 0;
+        var legsHtml = '';
 
-        route.legs.forEach(function(leg) {
+        route.legs.forEach(function(leg, i) {
             totalMeters += leg.distance.value;
             totalSeconds += leg.duration.value;
+            legsHtml +=
+                '<div class="route-leg">' +
+                    '<span class="route-leg-num">' + String.fromCharCode(65 + i) + '</span>' +
+                    '<span class="route-leg-text">' +
+                        shortenAddr(leg.start_address) + ' → ' + shortenAddr(leg.end_address) +
+                    '</span>' +
+                    '<span class="route-leg-data">' + leg.distance.text + ' | ' + leg.duration.text + '</span>' +
+                '</div>';
         });
 
         var totalKm = Math.round(totalMeters / 1000);
         var totalMin = Math.round(totalSeconds / 60);
-        var hours = Math.floor(totalMin / 60);
-        var mins = totalMin % 60;
-        var timeStr = hours > 0 ? hours + 'h ' + mins + 'min' : mins + ' min';
+        var totalH = Math.round((totalMin / 60) * 100) / 100;
 
-        infoDiv.className = 'route-auto-info';
-        infoDiv.querySelector('.route-auto-result').innerHTML =
-            '<span class="material-icons-round">route</span>' +
-            '<span>Trasa: <strong>' + totalKm + '</strong> km | <strong>' + timeStr + '</strong></span>';
-        infoDiv.style.display = 'block';
+        // Wpisz km i czas
+        document.getElementById('f-km').value = totalKm;
+        document.getElementById('f-hours').value = totalH;
+
+        // Oblicz koszty na podstawie stawek kontrahenta
+        var contractor = document.getElementById('f-contractor').value;
+        var rate = STAWKI_LOCAL[contractor];
+        var costTime = 0, costKm = 0, costTotal = 0;
+
+        if (rate) {
+            costTime = Math.round(totalH * rate.godz * 100) / 100;
+            costKm = Math.round(totalKm * rate.km * 100) / 100;
+            costTotal = costTime + costKm;
+        }
+
+        document.getElementById('f-cost-time').value = costTime ? costTime + ' zł' : '-';
+        document.getElementById('f-cost-km').value = costKm ? costKm + ' zł' : '-';
+        document.getElementById('f-cost-total').textContent = costTotal ? costTotal + ' zł' : '0 zł';
+
+        // Pokaż info
+        info.innerHTML =
+            '<div style="padding:10px 14px; background:#e8f5e9; border-radius:8px; color:#2e7d32;">' +
+                '<span class="material-icons-round" style="vertical-align:middle;font-size:18px;">check_circle</span> ' +
+                'Trasa: <strong>' + totalKm + ' km</strong> | ' +
+                '<strong>' + Math.floor(totalMin / 60) + 'h ' + (totalMin % 60) + 'min</strong> ' +
+                '(' + route.legs.length + ' odcinków)' +
+            '</div>';
+        info.style.display = 'block';
+        legsDiv.innerHTML = legsHtml;
+        legsDiv.style.display = 'block';
+        summary.style.display = 'block';
+
+        showToast(totalKm + ' km, ' + Math.floor(totalMin / 60) + 'h ' + (totalMin % 60) + 'min', 'success');
     });
 }
 
@@ -392,6 +490,22 @@ const STAWKI_LOCAL = {
 async function handleOrderSubmit(e) {
     e.preventDefault();
 
+    // Zbierz przystanki jako trasę
+    var base = document.getElementById('f-base').value.trim();
+    var stopInputs = document.querySelectorAll('.f-stop-input');
+    var stops = [];
+    stopInputs.forEach(function(input) {
+        if (input.value.trim()) stops.push(input.value.trim());
+    });
+    var returnToBase = document.getElementById('f-return-base').checked;
+
+    // Adres start = baza, Adres koniec = przystanki (jako opis trasy)
+    var adresStart = base || 'Rudzka 14, Racibórz';
+    var adresKoniec = stops.join(' → ');
+    if (returnToBase && stops.length > 0) {
+        adresKoniec += ' → ' + adresStart;
+    }
+
     const data = {
         kontrahent: document.getElementById('f-contractor').value,
         typ_transportu: document.getElementById('f-transport-type').value,
@@ -403,8 +517,8 @@ async function handleOrderSubmit(e) {
         telefon: document.getElementById('f-phone').value,
         typ_pacjenta: document.getElementById('f-patient-type').value,
         rodzina_pomoc: document.getElementById('f-family-help').value,
-        adres_start: document.getElementById('f-from').value,
-        adres_koniec: document.getElementById('f-to').value,
+        adres_start: adresStart,
+        adres_koniec: adresKoniec,
         karetka_nr: document.getElementById('f-vehicle').value,
         pracownik_1: document.getElementById('f-worker1').value,
         pracownik_2: document.getElementById('f-worker2').value,
@@ -432,7 +546,30 @@ async function handleOrderSubmit(e) {
 function resetOrderForm() {
     document.getElementById('order-form').reset();
     document.getElementById('rate-preview').style.display = 'none';
+    document.getElementById('order-route-info').style.display = 'none';
+    document.getElementById('order-route-legs').style.display = 'none';
+    document.getElementById('order-route-summary').style.display = 'none';
     document.getElementById('f-date').value = formatDateISO(new Date());
+    document.getElementById('f-base').value = 'Rudzka 14, Racibórz';
+    document.getElementById('f-return-base').checked = true;
+
+    // Reset przystanków - zostaw tylko 1
+    var stopsContainer = document.getElementById('f-stops');
+    stopsContainer.innerHTML =
+        '<div class="route-point" data-stop="1">' +
+            '<div class="route-marker stop">1</div>' +
+            '<div class="form-group" style="flex:1;">' +
+                '<label class="form-label">Przystanek 1 (np. adres pacjenta) *</label>' +
+                '<input type="text" class="f-stop-input" placeholder="Wpisz adres..." required>' +
+            '</div>' +
+            '<button type="button" class="btn-remove-stop" onclick="removeOrderStop(this)" title="Usuń">' +
+                '<span class="material-icons-round">close</span>' +
+            '</button>' +
+        '</div>';
+    orderStopCounter = 1;
+
+    // Autocomplete na nowym polu
+    attachAutocomplete(stopsContainer.querySelector('.f-stop-input'));
 }
 
 // ============================================================
@@ -676,38 +813,18 @@ function initAddressAutocomplete() {
         fields: ['formatted_address', 'name']
     };
 
-    var fromInput = document.getElementById('f-from');
-    var toInput = document.getElementById('f-to');
+    // Autocomplete na polach formularza zlecenia
+    var fBase = document.getElementById('f-base');
+    if (fBase) new google.maps.places.Autocomplete(fBase, options);
 
-    if (fromInput) {
-        var acFrom = new google.maps.places.Autocomplete(fromInput, options);
-        acFrom.addListener('place_changed', function() {
-            var place = acFrom.getPlace();
-            if (place && place.formatted_address) {
-                fromInput.value = place.formatted_address;
-            }
-            autoCalcRoute();
-        });
-    }
-
-    if (toInput) {
-        var acTo = new google.maps.places.Autocomplete(toInput, options);
-        acTo.addListener('place_changed', function() {
-            var place = acTo.getPlace();
-            if (place && place.formatted_address) {
-                toInput.value = place.formatted_address;
-            }
-            autoCalcRoute();
-        });
-    }
+    document.querySelectorAll('.f-stop-input').forEach(function(input) {
+        new google.maps.places.Autocomplete(input, options);
+    });
 
     // Autocomplete na polach kalkulatora
     var calcBase = document.getElementById('calc-base');
-    if (calcBase) {
-        new google.maps.places.Autocomplete(calcBase, options);
-    }
+    if (calcBase) new google.maps.places.Autocomplete(calcBase, options);
 
-    // Autocomplete na istniejących przystankach
     document.querySelectorAll('.calc-stop-input').forEach(function(input) {
         new google.maps.places.Autocomplete(input, options);
     });

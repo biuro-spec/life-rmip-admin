@@ -264,23 +264,80 @@
 
                         <h3 class="form-section-title">Trasa</h3>
 
-                        <!-- Wiersz 5: Adresy -->
-                        <div class="form-row">
-                            <div class="form-group flex-2">
-                                <label class="form-label">Skąd (adres początkowy) *</label>
-                                <input type="text" id="f-from" required placeholder="np. Dom, Racibórz ul. Długa 15">
-                            </div>
-                            <div class="form-group flex-2">
-                                <label class="form-label">Dokąd (adres docelowy) *</label>
-                                <input type="text" id="f-to" required placeholder="np. Szpital Racibórz, Oddz. Neurologii">
+                        <!-- Baza startowa -->
+                        <div class="route-point">
+                            <div class="route-marker start">A</div>
+                            <div class="form-group" style="flex:1;">
+                                <label class="form-label">Baza (start)</label>
+                                <input type="text" id="f-base" value="Rudzka 14, Racibórz" placeholder="Adres bazy">
                             </div>
                         </div>
 
-                        <!-- Auto-obliczenie trasy -->
-                        <div class="route-auto-info" id="route-auto-info" style="display:none;">
-                            <div class="route-auto-result">
-                                <span class="material-icons-round">route</span>
-                                <span>Trasa: <strong id="auto-route-km">0</strong> km | <strong id="auto-route-time">0</strong></span>
+                        <!-- Przystanki dynamiczne -->
+                        <div id="f-stops">
+                            <div class="route-point" data-stop="1">
+                                <div class="route-marker stop">1</div>
+                                <div class="form-group" style="flex:1;">
+                                    <label class="form-label">Przystanek 1 (np. adres pacjenta) *</label>
+                                    <input type="text" class="f-stop-input" placeholder="Wpisz adres..." required>
+                                </div>
+                                <button type="button" class="btn-remove-stop" onclick="removeOrderStop(this)" title="Usuń">
+                                    <span class="material-icons-round">close</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn-add-stop" onclick="addOrderStop()">
+                            <span class="material-icons-round">add_location</span>
+                            Dodaj przystanek
+                        </button>
+
+                        <!-- Powrót na bazę -->
+                        <div class="route-point">
+                            <div class="route-marker end">
+                                <span class="material-icons-round" style="font-size:16px;">home</span>
+                            </div>
+                            <div style="flex:1; padding:10px 0;">
+                                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:14px;">
+                                    <input type="checkbox" id="f-return-base" checked>
+                                    Powrót na bazę (Rudzka 14)
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Przycisk oblicz trasę -->
+                        <button type="button" class="btn-maps" id="btn-order-route" onclick="calcOrderRoute()" style="margin: 12px 0 16px; width:100%;">
+                            <span class="material-icons-round">route</span>
+                            Oblicz trasę z Google Maps
+                        </button>
+
+                        <!-- Wynik trasy -->
+                        <div id="order-route-info" style="display:none; margin-bottom:8px;"></div>
+                        <div id="order-route-legs" style="display:none; margin-bottom:12px;"></div>
+
+                        <!-- Podsumowanie: km, czas, koszt -->
+                        <div class="order-route-summary" id="order-route-summary" style="display:none;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Kilometry</label>
+                                    <input type="number" id="f-km" value="" min="0" step="1" placeholder="0" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Czas jazdy (h)</label>
+                                    <input type="number" id="f-hours" value="" min="0" step="0.01" placeholder="0" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Koszt czasu</label>
+                                    <input type="text" id="f-cost-time" value="" readonly style="background:#f5f5f5;">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Koszt km</label>
+                                    <input type="text" id="f-cost-km" value="" readonly style="background:#f5f5f5;">
+                                </div>
+                            </div>
+                            <div class="order-route-total">
+                                <span>Szacunkowy koszt:</span>
+                                <strong id="f-cost-total">0 zł</strong>
                             </div>
                         </div>
 
