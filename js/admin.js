@@ -1336,6 +1336,13 @@ function initAddressAutocomplete() {
     var fBase = document.getElementById('f-base');
     if (fBase) new google.maps.places.Autocomplete(fBase, options);
 
+    // Adres zamieszkania pacjenta
+    var fAddress = document.getElementById('f-address');
+    if (fAddress) new google.maps.places.Autocomplete(fAddress, options);
+
+    var editAddress = document.getElementById('edit-address');
+    if (editAddress) new google.maps.places.Autocomplete(editAddress, options);
+
     document.querySelectorAll('.f-stop-input').forEach(function(input) {
         new google.maps.places.Autocomplete(input, options);
     });
