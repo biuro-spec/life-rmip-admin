@@ -129,6 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Google Places Autocomplete na polach adresowych
     initAddressAutocomplete();
 
+    // Autocomplete pacjentów
+    initPatientAutocomplete();
+
     // Kontrahent change -> auto-baza
     document.getElementById('f-contractor').addEventListener('change', function() {
         var c = this.value;
@@ -765,9 +768,9 @@ async function loadWorkersView() {
                 '</div>' +
             '</div>' +
             '<div class="worker-detail-stats">' +
-                '<div class="worker-stat"><span class="worker-stat-value">-</span><span class="worker-stat-label">Zleceń</span></div>' +
-                '<div class="worker-stat"><span class="worker-stat-value">-</span><span class="worker-stat-label">Godzin</span></div>' +
-                '<div class="worker-stat"><span class="worker-stat-value">-</span><span class="worker-stat-label">Km</span></div>' +
+                '<div class="worker-stat"><span class="worker-stat-label">Zleceń</span><span class="worker-stat-value">-</span></div>' +
+                '<div class="worker-stat"><span class="worker-stat-label">Godzin</span><span class="worker-stat-value">-</span></div>' +
+                '<div class="worker-stat"><span class="worker-stat-label">Km</span><span class="worker-stat-value">-</span></div>' +
             '</div>' +
         '</div>';
     }).join('');
@@ -1145,7 +1148,7 @@ function statusBadge(status) {
     else if (status.indexOf('Zakończone') > -1 || status === 'completed') cls = 'zakonczone';
     else if (status.indexOf('rozliczenia') > -1) cls = 'do-rozliczenia';
     else if (status.indexOf('Rozliczone') > -1) cls = 'rozliczone';
-    return '<span class="status-badge ' + cls + '">' + status + '</span>';
+    return '<span class="status-badge ' + cls + '"><span class="status-dot"></span>' + status + '</span>';
 }
 
 function mapStatusForDisplay(frontendStatus) {
@@ -1169,8 +1172,10 @@ function formatDateShort(dateVal) {
     if (!dateVal) return '-';
     try {
         var d = new Date(dateVal);
+        if (isNaN(d.getTime())) return String(dateVal);
         return String(d.getDate()).padStart(2, '0') + '.' +
-            String(d.getMonth() + 1).padStart(2, '0');
+            String(d.getMonth() + 1).padStart(2, '0') + '.' +
+            d.getFullYear();
     } catch (e) {
         return String(dateVal);
     }
@@ -1189,4 +1194,158 @@ function showToast(message, type) {
     setTimeout(function() {
         toast.classList.remove('show');
     }, 3500);
+}
+
+// ============================================================
+// AUTOCOMPLETE PACJENTÓW
+// ============================================================
+
+var patientSearchTimer = null;
+
+function initPatientAutocomplete() {
+    // Formularz nowego zlecenia
+    var fName = document.getElementById('f-patient-name');
+    if (fName) {
+        fName.addEventListener('input', function() {
+            handlePatientInput(this.value, 'patient-suggestions', 'f-');
+        });
+        fName.addEventListener('focus', function() {
+            if (this.value.length >= 2) {
+                handlePatientInput(this.value, 'patient-suggestions', 'f-');
+            }
+        });
+    }
+
+    // Modal edycji
+    var eName = document.getElementById('edit-patient-name');
+    if (eName) {
+        eName.addEventListener('input', function() {
+            handlePatientInput(this.value, 'edit-patient-suggestions', 'edit-');
+        });
+        eName.addEventListener('focus', function() {
+            if (this.value.length >= 2) {
+                handlePatientInput(this.value, 'edit-patient-suggestions', 'edit-');
+            }
+        });
+    }
+
+    // Zamknij dropdown na klik poza nim
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.patient-input-wrap')) {
+            closeAllPatientSuggestions();
+        }
+    });
+}
+
+function handlePatientInput(query, dropdownId, prefix) {
+    clearTimeout(patientSearchTimer);
+
+    if (!query || query.length < 2) {
+        closeSuggestions(dropdownId);
+        return;
+    }
+
+    patientSearchTimer = setTimeout(function() {
+        searchPatientAPI(query, dropdownId, prefix);
+    }, 300);
+}
+
+async function searchPatientAPI(query, dropdownId, prefix) {
+    if (API_MODE !== 'api') return;
+
+    var results = await apiGet({ action: 'searchPatients', query: query });
+    if (results && results.length > 0) {
+        renderPatientSuggestions(results, dropdownId, prefix);
+    } else {
+        closeSuggestions(dropdownId);
+    }
+}
+
+function renderPatientSuggestions(patients, dropdownId, prefix) {
+    var dropdown = document.getElementById(dropdownId);
+    if (!dropdown) return;
+
+    var html = '';
+    patients.forEach(function(p) {
+        var initial = p.name ? p.name.charAt(0).toUpperCase() : '?';
+        var details = [];
+        if (p.pesel) details.push('PESEL: ' + p.pesel);
+        if (p.phone) details.push(p.phone);
+        if (p.orderCount > 0) details.push(p.orderCount + ' zlec.');
+
+        html +=
+            '<div class="patient-suggestion-item" ' +
+                'data-name="' + escAttr(p.name) + '" ' +
+                'data-pesel="' + escAttr(p.pesel) + '" ' +
+                'data-phone="' + escAttr(p.phone) + '" ' +
+                'data-type="' + escAttr(p.patientType) + '" ' +
+                'data-family="' + escAttr(p.familyHelp) + '" ' +
+                'data-medical="' + escAttr(p.medicalNotes) + '" ' +
+                'data-prefix="' + prefix + '">' +
+                '<div class="patient-suggestion-icon">' +
+                    '<span class="material-icons-round">person</span>' +
+                '</div>' +
+                '<div class="patient-suggestion-info">' +
+                    '<div class="patient-suggestion-name">' + escHtml(p.name) + '</div>' +
+                    (details.length ? '<div class="patient-suggestion-details">' + escHtml(details.join(' · ')) + '</div>' : '') +
+                '</div>' +
+            '</div>';
+    });
+
+    dropdown.innerHTML = html;
+    dropdown.classList.add('open');
+
+    // Kliknięcie na sugestię
+    dropdown.querySelectorAll('.patient-suggestion-item').forEach(function(item) {
+        item.addEventListener('click', function() {
+            selectPatient(this);
+        });
+    });
+}
+
+function selectPatient(el) {
+    var prefix = el.dataset.prefix;
+    var nameField = prefix === 'f-' ? 'f-patient-name' : 'edit-patient-name';
+    var peselField = prefix === 'f-' ? 'f-pesel' : 'edit-pesel';
+    var phoneField = prefix === 'f-' ? 'f-phone' : 'edit-phone';
+    var typeField = prefix === 'f-' ? 'f-patient-type' : 'edit-patient-type';
+    var familyField = prefix === 'f-' ? 'f-family-help' : 'edit-family-help';
+    var medicalField = prefix === 'f-' ? 'f-medical-notes' : 'edit-medical-notes';
+
+    document.getElementById(nameField).value = el.dataset.name || '';
+    document.getElementById(peselField).value = el.dataset.pesel || '';
+    document.getElementById(phoneField).value = el.dataset.phone || '';
+    setSelectValue(typeField, el.dataset.type || 'Siedzący');
+    setSelectValue(familyField, el.dataset.family || 'Nie');
+
+    var medField = document.getElementById(medicalField);
+    if (medField && el.dataset.medical) {
+        medField.value = el.dataset.medical;
+    }
+
+    closeAllPatientSuggestions();
+    showToast('Dane pacjenta uzupełnione', 'success');
+}
+
+function closeSuggestions(dropdownId) {
+    var d = document.getElementById(dropdownId);
+    if (d) {
+        d.classList.remove('open');
+        d.innerHTML = '';
+    }
+}
+
+function closeAllPatientSuggestions() {
+    closeSuggestions('patient-suggestions');
+    closeSuggestions('edit-patient-suggestions');
+}
+
+function escAttr(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

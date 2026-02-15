@@ -99,40 +99,40 @@
                 <!-- Stats Cards -->
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-icon" style="background: #E3F2FD; color: #1565C0;">
-                            <span class="material-icons-round">event_note</span>
+                        <div class="stat-card-header">
+                            <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">
+                                <span class="material-icons-round">event_note</span>
+                            </div>
                         </div>
-                        <div class="stat-info">
-                            <span class="stat-value" id="stat-today-total">0</span>
-                            <span class="stat-label">Zlecenia dzisiaj</span>
-                        </div>
+                        <span class="stat-label">Zlecenia dzisiaj</span>
+                        <span class="stat-value" id="stat-today-total">0</span>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon" style="background: #FFF3E0; color: #E65100;">
-                            <span class="material-icons-round">directions_car</span>
+                        <div class="stat-card-header">
+                            <div class="stat-icon" style="background: #fff7ed; color: #ea580c;">
+                                <span class="material-icons-round">directions_car</span>
+                            </div>
                         </div>
-                        <div class="stat-info">
-                            <span class="stat-value" id="stat-in-progress">0</span>
-                            <span class="stat-label">W trakcie</span>
-                        </div>
+                        <span class="stat-label">W trakcie</span>
+                        <span class="stat-value" id="stat-in-progress">0</span>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon" style="background: #E8F5E9; color: #2E7D32;">
-                            <span class="material-icons-round">check_circle</span>
+                        <div class="stat-card-header">
+                            <div class="stat-icon" style="background: #f0fdf4; color: #16a34a;">
+                                <span class="material-icons-round">check_circle</span>
+                            </div>
                         </div>
-                        <div class="stat-info">
-                            <span class="stat-value" id="stat-completed">0</span>
-                            <span class="stat-label">Zakończone</span>
-                        </div>
+                        <span class="stat-label">Zakończone</span>
+                        <span class="stat-value" id="stat-completed">0</span>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon" style="background: #FCE4EC; color: #B71C1C;">
-                            <span class="material-icons-round">schedule</span>
+                        <div class="stat-card-header">
+                            <div class="stat-icon" style="background: rgba(181,28,28,0.05); color: #b51c1c;">
+                                <span class="material-icons-round">schedule</span>
+                            </div>
                         </div>
-                        <div class="stat-info">
-                            <span class="stat-value" id="stat-scheduled">0</span>
-                            <span class="stat-label">Zaplanowane</span>
-                        </div>
+                        <span class="stat-label">Zaplanowane</span>
+                        <span class="stat-value" id="stat-scheduled">0</span>
                     </div>
                 </div>
 
@@ -230,9 +230,10 @@
 
                         <!-- Wiersz 3: Pacjent -->
                         <div class="form-row">
-                            <div class="form-group flex-2">
+                            <div class="form-group flex-2 patient-input-wrap">
                                 <label class="form-label">Imię i nazwisko *</label>
-                                <input type="text" id="f-patient-name" required placeholder="np. Kowalski Jan">
+                                <input type="text" id="f-patient-name" required placeholder="np. Kowalski Jan" autocomplete="off">
+                                <div class="patient-suggestions" id="patient-suggestions"></div>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">PESEL</label>
@@ -748,9 +749,10 @@
                 <div class="modal-section">
                     <h4>Pacjent</h4>
                     <div class="form-row">
-                        <div class="form-group flex-2">
+                        <div class="form-group flex-2 patient-input-wrap">
                             <label class="form-label">Imię i nazwisko</label>
-                            <input type="text" id="edit-patient-name">
+                            <input type="text" id="edit-patient-name" autocomplete="off">
+                            <div class="patient-suggestions" id="edit-patient-suggestions"></div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">PESEL</label>
