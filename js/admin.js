@@ -554,6 +554,71 @@ function initAddressAutocomplete() {
             }
         });
     }
+
+    // Autocomplete na polach kalkulatora
+    var calcFrom = document.getElementById('calc-from');
+    var calcTo = document.getElementById('calc-to');
+
+    if (calcFrom) {
+        new google.maps.places.Autocomplete(calcFrom, options);
+    }
+    if (calcTo) {
+        new google.maps.places.Autocomplete(calcTo, options);
+    }
+}
+
+// Pobierz km i czas z Google Maps Distance Matrix
+function fetchRouteFromMaps() {
+    var from = document.getElementById('calc-from').value;
+    var to = document.getElementById('calc-to').value;
+    var btn = document.getElementById('btn-fetch-route');
+    var info = document.getElementById('route-info');
+
+    if (!from || !to) {
+        showToast('Wpisz oba adresy', 'error');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons-round">hourglass_top</span> Pobieranie...';
+    info.style.display = 'none';
+
+    var service = new google.maps.DistanceMatrixService();
+    service.getDistanceMatrix({
+        origins: [from],
+        destinations: [to],
+        travelMode: 'DRIVING',
+        unitSystem: google.maps.UnitSystem.METRIC
+    }, function(response, status) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round">route</span> Pobierz km i czas z Google Maps';
+
+        if (status !== 'OK') {
+            showToast('Błąd Google Maps: ' + status, 'error');
+            return;
+        }
+
+        var result = response.rows[0].elements[0];
+        if (result.status !== 'OK') {
+            showToast('Nie znaleziono trasy', 'error');
+            return;
+        }
+
+        var km = Math.round(result.distance.value / 1000);
+        var durationMin = Math.round(result.duration.value / 60);
+        var durationH = Math.round((durationMin / 60) * 100) / 100;
+
+        document.getElementById('calc-km').value = km;
+        document.getElementById('calc-hours').value = durationH;
+
+        info.innerHTML =
+            '<span class="material-icons-round" style="vertical-align:middle;font-size:18px;">check_circle</span> ' +
+            '<strong>' + result.distance.text + '</strong> | ' +
+            '<strong>' + result.duration.text + '</strong> (' + durationH + ' h)';
+        info.style.display = 'block';
+
+        showToast(km + ' km, ' + result.duration.text, 'success');
+    });
 }
 
 // ============================================================

@@ -390,6 +390,11 @@
                                 <input type="text" id="calc-to" placeholder="Adres docelowy">
                             </div>
                         </div>
+                        <button type="button" class="btn-maps" id="btn-fetch-route" onclick="fetchRouteFromMaps()" style="margin: 8px 0 16px;">
+                            <span class="material-icons-round">route</span>
+                            Pobierz km i czas z Google Maps
+                        </button>
+                        <div id="route-info" style="display:none; margin-bottom:12px; padding:10px 14px; background:#e8f5e9; border-radius:8px; font-size:13px; color:#2e7d32;"></div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label">Kilometry</label>
