@@ -1082,6 +1082,73 @@
         </div>
     </div>
 
+    <!-- Modal: Edycja pacjenta -->
+    <div class="modal-overlay" id="edit-patient-modal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><span class="material-icons-round">edit</span> Edycja pacjenta <span id="edit-patient-id" style="color:var(--text-secondary);font-size:13px;"></span></h3>
+                <button class="modal-close" onclick="closeModal('edit-patient-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <h4>Dane pacjenta</h4>
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label class="form-label">Imię i nazwisko</label>
+                            <input type="text" id="ep-name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">PESEL</label>
+                            <input type="text" id="ep-pesel" maxlength="11">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Telefon</label>
+                            <input type="tel" id="ep-phone">
+                        </div>
+                        <div class="form-group flex-2">
+                            <label class="form-label">Adres zamieszkania</label>
+                            <input type="text" id="ep-address" placeholder="np. Opawska 12/3, 47-400 Racibórz">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-section">
+                    <h4>Informacje medyczne</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Typ pacjenta</label>
+                            <select id="ep-type">
+                                <option value="Siedzący">Siedzący</option>
+                                <option value="Leżący">Leżący</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Pomoc rodziny</label>
+                            <select id="ep-family">
+                                <option value="Nie">Nie</option>
+                                <option value="Tak">Tak</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Uwagi medyczne</label>
+                        <textarea id="ep-medical" rows="3" placeholder="Np. pacjent wymaga tlenu, noszowe..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('edit-patient-modal')">Anuluj</button>
+                <button class="btn-primary-lg" id="save-patient-btn" onclick="savePatient()">
+                    <span class="material-icons-round">save</span>
+                    Zapisz zmiany
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Szczegóły pracownika -->
     <div class="modal-overlay" id="worker-details-modal" style="display:none;">
         <div class="modal modal-lg">

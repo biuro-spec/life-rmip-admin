@@ -391,6 +391,26 @@ async function getWorkerDetailsAPI(login) {
 }
 
 // ============================================================
+// PACJENCI API
+// ============================================================
+
+/**
+ * Aktualizuje dane pacjenta
+ */
+async function updatePatientAPI(id, data) {
+  if (API_MODE === 'api') {
+    const result = await apiPost({
+      action: 'updatePatient',
+      id: id,
+      data: data
+    });
+    if (result) return { success: true };
+    return { success: false, message: 'Błąd aktualizacji pacjenta' };
+  }
+  return { success: true };
+}
+
+// ============================================================
 // MAPOWANIE DANYCH Z API NA FORMAT FRONTEND
 // ============================================================
 

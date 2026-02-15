@@ -2162,7 +2162,7 @@ function renderPatientsTable(patients) {
             ? '<span class="patient-notes-preview" title="' + escAttr(p.medicalNotes) + '">' + escHtml(p.medicalNotes.substring(0, 40)) + (p.medicalNotes.length > 40 ? '...' : '') + '</span>'
             : '<span style="color:var(--text-secondary)">-</span>';
 
-        return '<tr>' +
+        return '<tr class="patient-row" data-patient-id="' + escAttr(p.id) + '" style="cursor:pointer;" title="Kliknij aby edytować">' +
             '<td><div class="patient-name-cell"><div class="patient-avatar">' + (p.name ? p.name.charAt(0) : '?') + '</div><span>' + escHtml(p.name) + '</span></div></td>' +
             '<td>' + (p.pesel || '-') + '</td>' +
             '<td>' + (p.phone ? '<a href="tel:' + p.phone + '" class="patient-phone">' + p.phone + '</a>' : '-') + '</td>' +
@@ -2173,6 +2173,76 @@ function renderPatientsTable(patients) {
             '<td>' + notes + '</td>' +
         '</tr>';
     }).join('');
+
+    // Kliknięcie na wiersz pacjenta -> edycja
+    tbody.querySelectorAll('.patient-row').forEach(function(row) {
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('a')) return; // Nie otwieraj edycji przy kliknięciu w telefon
+            var patientId = this.dataset.patientId;
+            var patient = allPatients.find(function(p) { return p.id === patientId; });
+            if (patient) openEditPatientModal(patient);
+        });
+    });
+}
+
+var editingPatientId = null;
+
+function openEditPatientModal(patient) {
+    editingPatientId = patient.id;
+    document.getElementById('edit-patient-id').textContent = patient.id;
+    document.getElementById('ep-name').value = patient.name || '';
+    document.getElementById('ep-pesel').value = patient.pesel || '';
+    document.getElementById('ep-phone').value = patient.phone || '';
+    document.getElementById('ep-address').value = patient.address || '';
+    setSelectValue('ep-type', patient.patientType || 'Siedzący');
+    setSelectValue('ep-family', patient.familyHelp || 'Nie');
+    document.getElementById('ep-medical').value = patient.medicalNotes || '';
+    document.getElementById('edit-patient-modal').style.display = 'flex';
+
+    // Google Places autocomplete na adresie
+    var epAddr = document.getElementById('ep-address');
+    if (epAddr && !epAddr._autocompleteInit) {
+        attachAutocomplete(epAddr);
+        epAddr._autocompleteInit = true;
+    }
+}
+
+async function savePatient() {
+    if (!editingPatientId) return;
+
+    var btn = document.getElementById('save-patient-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons-round spin">sync</span> Zapisywanie...';
+
+    var data = {
+        imie_nazwisko: document.getElementById('ep-name').value.trim(),
+        pesel: document.getElementById('ep-pesel').value.trim(),
+        telefon: document.getElementById('ep-phone').value.trim(),
+        adres_zamieszkania: document.getElementById('ep-address').value.trim(),
+        typ_pacjenta: document.getElementById('ep-type').value,
+        rodzina_pomoc: document.getElementById('ep-family').value,
+        uwagi_medyczne: document.getElementById('ep-medical').value.trim()
+    };
+
+    if (!data.imie_nazwisko) {
+        showToast('Imię i nazwisko jest wymagane', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round">save</span> Zapisz zmiany';
+        return;
+    }
+
+    var result = await updatePatientAPI(editingPatientId, data);
+
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-icons-round">save</span> Zapisz zmiany';
+
+    if (result.success) {
+        showToast('Dane pacjenta zapisane', 'success');
+        closeModal('edit-patient-modal');
+        loadPatientsView(); // Odśwież listę
+    } else {
+        showToast(result.message || 'Błąd zapisu', 'error');
+    }
 }
 
 // ============================================================
