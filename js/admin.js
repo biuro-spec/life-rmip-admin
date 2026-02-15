@@ -1760,12 +1760,21 @@ async function refreshMapPositions() {
 
         var result = await apiGet({ action: 'getAmbulancePositions' });
 
-        // apiGet zwraca data.data (response wrapper), więc result = tablica pozycji
+        // result = {vehicles: [...], debug: {...}} lub tablica (stary format)
         var positions = [];
-        if (Array.isArray(result)) {
+        var debugInfo = null;
+        if (result && Array.isArray(result.vehicles)) {
+            positions = result.vehicles;
+            debugInfo = result.debug || null;
+        } else if (Array.isArray(result)) {
             positions = result;
         } else if (result && Array.isArray(result.data)) {
             positions = result.data;
+        }
+
+        // Debug info w konsoli
+        if (debugInfo) {
+            console.log('Map debug:', debugInfo);
         }
 
         // Wyczyść stare markery
