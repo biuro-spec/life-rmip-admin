@@ -19,7 +19,7 @@ const viewTitles = {
 function showView(viewId) {
     // Ukryj wszystkie widoki
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.nav-item[data-view]').forEach(n => n.classList.remove('active'));
 
     // Pokaż wybrany
     const view = document.getElementById('view-' + viewId);
@@ -27,6 +27,15 @@ function showView(viewId) {
 
     const nav = document.querySelector('[data-view="' + viewId + '"]');
     if (nav) nav.classList.add('active');
+
+    // Jeśli to nowe-zlecenie, podświetl parent toggle
+    if (viewId === 'new-order') {
+        document.getElementById('nav-new-order-toggle').classList.add('active');
+    } else {
+        // Wyczyść submenu highlight
+        document.querySelectorAll('.nav-sub-item').forEach(s => s.classList.remove('active'));
+        document.getElementById('nav-new-order-toggle').classList.remove('active');
+    }
 
     // Tytuł strony
     document.getElementById('page-title').textContent = viewTitles[viewId] || viewId;
@@ -48,11 +57,34 @@ function showView(viewId) {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Nawigacja
-    document.querySelectorAll('.nav-item').forEach(item => {
+    // Nawigacja - główne elementy (z data-view)
+    document.querySelectorAll('.nav-item[data-view]').forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
             showView(item.dataset.view);
+        });
+    });
+
+    // Submenu "Nowe zlecenie" - rozwijanie
+    var toggleBtn = document.getElementById('nav-new-order-toggle');
+    var subMenu = document.getElementById('nav-new-order-sub');
+
+    toggleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        toggleBtn.classList.toggle('open');
+        subMenu.classList.toggle('open');
+    });
+
+    // Kliknięcie na kontrahenta w submenu
+    document.querySelectorAll('.nav-sub-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            var contractor = item.dataset.contractor;
+            openNewOrderForContractor(contractor);
+
+            // Podświetl wybrany element
+            document.querySelectorAll('.nav-sub-item').forEach(s => s.classList.remove('active'));
+            item.classList.add('active');
         });
     });
 
@@ -96,6 +128,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Google Places Autocomplete na polach adresowych
     initAddressAutocomplete();
+
+    // Auto-obliczanie trasy po zmianie adresów
+    initAutoRouteCalc();
 
     // Załaduj dashboard
     loadDashboard();
@@ -216,6 +251,117 @@ function initOrderForm() {
         document.getElementById('f-date').value = formatDateISO(new Date());
     }
     updateRatePreview();
+}
+
+/**
+ * Otwiera formularz nowego zlecenia z wybranym kontrahentem
+ */
+function openNewOrderForContractor(contractor) {
+    // Resetuj formularz
+    resetOrderForm();
+
+    // Pokaż widok
+    showView('new-order');
+
+    // Ustaw kontrahenta
+    setSelectValue('f-contractor', contractor);
+    updateRatePreview();
+
+    // Ustaw tytuł
+    document.getElementById('page-title').textContent = 'Nowe zlecenie — ' + contractor;
+
+    // Podświetl toggle
+    document.getElementById('nav-new-order-toggle').classList.add('active', 'open');
+    document.getElementById('nav-new-order-sub').classList.add('open');
+}
+
+/**
+ * Auto-obliczanie trasy z Google Maps po wpisaniu adresów
+ */
+var autoRouteTimeout = null;
+
+function initAutoRouteCalc() {
+    var fromInput = document.getElementById('f-from');
+    var toInput = document.getElementById('f-to');
+
+    if (!fromInput || !toInput) return;
+
+    // Nasłuchuj na zmianę wartości (po autocomplete lub ręcznie)
+    function scheduleAutoCalc() {
+        clearTimeout(autoRouteTimeout);
+        autoRouteTimeout = setTimeout(function() {
+            autoCalcRoute();
+        }, 800);
+    }
+
+    fromInput.addEventListener('change', scheduleAutoCalc);
+    toInput.addEventListener('change', scheduleAutoCalc);
+
+    // Dodaj też listener na place_changed z Autocomplete (bardziej precyzyjny)
+    if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+        // Autocomplete listeners dodane w initAddressAutocomplete
+        // ale potrzebujemy też reagować na ich place_changed
+        fromInput.addEventListener('blur', scheduleAutoCalc);
+        toInput.addEventListener('blur', scheduleAutoCalc);
+    }
+}
+
+function autoCalcRoute() {
+    var from = document.getElementById('f-from').value.trim();
+    var to = document.getElementById('f-to').value.trim();
+    var infoDiv = document.getElementById('route-auto-info');
+
+    if (!from || !to || from.length < 5 || to.length < 5) {
+        infoDiv.style.display = 'none';
+        return;
+    }
+
+    if (typeof google === 'undefined' || !google.maps) {
+        return;
+    }
+
+    // Pokaż "obliczanie..."
+    infoDiv.style.display = 'block';
+    infoDiv.className = 'route-auto-info loading';
+    infoDiv.querySelector('.route-auto-result').innerHTML =
+        '<span class="material-icons-round">hourglass_top</span>' +
+        '<span>Obliczanie trasy...</span>';
+
+    var directionsService = new google.maps.DirectionsService();
+    directionsService.route({
+        origin: from,
+        destination: to,
+        travelMode: 'DRIVING',
+        region: 'pl'
+    }, function(response, status) {
+        if (status !== 'OK') {
+            infoDiv.style.display = 'none';
+            return;
+        }
+
+        var route = response.routes[0];
+        var totalMeters = 0;
+        var totalSeconds = 0;
+
+        route.legs.forEach(function(leg) {
+            totalMeters += leg.distance.value;
+            totalSeconds += leg.duration.value;
+        });
+
+        var totalKm = Math.round(totalMeters / 1000);
+        var totalMin = Math.round(totalSeconds / 60);
+        var hours = Math.floor(totalMin / 60);
+        var mins = totalMin % 60;
+        var timeStr = hours > 0 ? hours + 'h ' + mins + 'min' : mins + ' min';
+
+        infoDiv.className = 'route-auto-info';
+        document.getElementById('auto-route-km').textContent = totalKm;
+        document.getElementById('auto-route-time').textContent = timeStr;
+        infoDiv.querySelector('.route-auto-result').innerHTML =
+            '<span class="material-icons-round">route</span>' +
+            '<span>Trasa: <strong>' + totalKm + '</strong> km | <strong>' + timeStr + '</strong></span>';
+        infoDiv.style.display = 'block';
+    });
 }
 
 function updateRatePreview() {
@@ -545,6 +691,7 @@ function initAddressAutocomplete() {
             if (place && place.formatted_address) {
                 fromInput.value = place.formatted_address;
             }
+            autoCalcRoute();
         });
     }
 
@@ -555,6 +702,7 @@ function initAddressAutocomplete() {
             if (place && place.formatted_address) {
                 toInput.value = place.formatted_address;
             }
+            autoCalcRoute();
         });
     }
 

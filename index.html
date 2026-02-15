@@ -21,10 +21,37 @@
                 <span class="material-icons-round">dashboard</span>
                 <span>Dashboard</span>
             </a>
-            <a href="#" class="nav-item" data-view="new-order">
+            <a href="#" class="nav-item nav-parent" id="nav-new-order-toggle">
                 <span class="material-icons-round">add_circle</span>
                 <span>Nowe zlecenie</span>
+                <span class="material-icons-round nav-arrow">expand_more</span>
             </a>
+            <div class="nav-submenu" id="nav-new-order-sub">
+                <a href="#" class="nav-sub-item" data-contractor="Szpital Racibórz">
+                    <span class="material-icons-round">local_hospital</span>
+                    Szpital Racibórz
+                </a>
+                <a href="#" class="nav-sub-item" data-contractor="ScanMed">
+                    <span class="material-icons-round">medical_services</span>
+                    ScanMed
+                </a>
+                <a href="#" class="nav-sub-item" data-contractor="Kietrz">
+                    <span class="material-icons-round">apartment</span>
+                    Kietrz
+                </a>
+                <a href="#" class="nav-sub-item" data-contractor="POZ Krzyżanowice">
+                    <span class="material-icons-round">health_and_safety</span>
+                    POZ Krzyżanowice
+                </a>
+                <a href="#" class="nav-sub-item" data-contractor="NFZ">
+                    <span class="material-icons-round">account_balance</span>
+                    NFZ
+                </a>
+                <a href="#" class="nav-sub-item" data-contractor="Prywatne">
+                    <span class="material-icons-round">person</span>
+                    Prywatne
+                </a>
+            </div>
             <a href="#" class="nav-item" data-view="orders">
                 <span class="material-icons-round">list_alt</span>
                 <span>Zlecenia</span>
@@ -246,6 +273,14 @@
                             <div class="form-group flex-2">
                                 <label class="form-label">Dokąd (adres docelowy) *</label>
                                 <input type="text" id="f-to" required placeholder="np. Szpital Racibórz, Oddz. Neurologii">
+                            </div>
+                        </div>
+
+                        <!-- Auto-obliczenie trasy -->
+                        <div class="route-auto-info" id="route-auto-info" style="display:none;">
+                            <div class="route-auto-result">
+                                <span class="material-icons-round">route</span>
+                                <span>Trasa: <strong id="auto-route-km">0</strong> km | <strong id="auto-route-time">0</strong></span>
                             </div>
                         </div>
 

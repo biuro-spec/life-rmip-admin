@@ -104,6 +104,52 @@ body {
     font-size: 22px;
 }
 
+/* Submenu nawigacji */
+.nav-parent {
+    position: relative;
+}
+.nav-arrow {
+    margin-left: auto;
+    font-size: 18px !important;
+    transition: transform 0.25s;
+}
+.nav-parent.open .nav-arrow {
+    transform: rotate(180deg);
+}
+.nav-submenu {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background: rgba(0,0,0,0.15);
+}
+.nav-submenu.open {
+    max-height: 400px;
+}
+.nav-sub-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px 10px 36px;
+    color: rgba(255,255,255,0.65);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+}
+.nav-sub-item:hover {
+    background: rgba(255,255,255,0.1);
+    color: var(--white);
+}
+.nav-sub-item.active {
+    background: rgba(255,255,255,0.12);
+    color: var(--white);
+    border-left-color: rgba(255,255,255,0.6);
+}
+.nav-sub-item .material-icons-round {
+    font-size: 18px;
+}
+
 .sidebar-footer {
     padding: 16px 20px;
     border-top: 1px solid rgba(255,255,255,0.15);
@@ -433,6 +479,37 @@ body {
     gap: 8px;
     font-size: 14px;
     color: #F57F17;
+}
+
+/* Auto-obliczenie trasy w formularzu */
+.route-auto-info {
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin: 12px 0 0;
+    animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.route-auto-result {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #2e7d32;
+}
+.route-auto-result .material-icons-round {
+    font-size: 20px;
+}
+.route-auto-info.loading {
+    background: #fff3e0;
+    border-color: #ffcc80;
+}
+.route-auto-info.loading .route-auto-result {
+    color: #e65100;
 }
 
 /* ==================== BUTTONS ==================== */
