@@ -42,6 +42,12 @@ function showView(viewId) {
     // Tytuł strony
     document.getElementById('page-title').textContent = viewTitles[viewId] || viewId;
 
+    // Zatrzymaj auto-odświeżanie mapy przy zmianie widoku
+    if (viewId !== 'map' && mapRefreshInterval) {
+        clearInterval(mapRefreshInterval);
+        mapRefreshInterval = null;
+    }
+
     // Załaduj dane widoku
     switch (viewId) {
         case 'dashboard': loadDashboard(); break;
@@ -1651,34 +1657,48 @@ var mapInfoWindow = null;
 /**
  * Ładuje widok mapy karetek
  */
-async function loadMapView() {
-    // Inicjalizuj mapę jeśli jeszcze nie istnieje
-    if (!ambulanceMap) {
-        initAmbulanceMap();
-    }
+function loadMapView() {
+    // Mapa wymaga opóźnienia - kontener musi być widoczny (display:block)
+    // zanim Google Maps obliczy wymiary
+    setTimeout(async function() {
+        try {
+            // Sprawdź czy Google Maps API jest załadowane
+            if (typeof google === 'undefined' || !google.maps) {
+                console.error('Google Maps API nie załadowane');
+                var listEl = document.getElementById('map-vehicle-list');
+                if (listEl) listEl.innerHTML = '<div class="map-no-data">Google Maps API niedostępne. Odśwież stronę.</div>';
+                return;
+            }
 
-    // Załaduj pozycje
-    await refreshMapPositions();
+            // Inicjalizuj mapę jeśli jeszcze nie istnieje
+            if (!ambulanceMap) {
+                initAmbulanceMap();
+            } else {
+                // Wymuś przerysowanie mapy po zmianie widoku
+                google.maps.event.trigger(ambulanceMap, 'resize');
+            }
 
-    // Auto-odświeżanie
-    var autoRefresh = document.getElementById('map-auto-refresh');
-    clearInterval(mapRefreshInterval);
-    if (autoRefresh && autoRefresh.checked) {
-        mapRefreshInterval = setInterval(refreshMapPositions, 60000);
-    }
-    if (autoRefresh) {
-        autoRefresh.onchange = function() {
+            // Załaduj pozycje
+            await refreshMapPositions();
+
+            // Auto-odświeżanie
+            var autoRefresh = document.getElementById('map-auto-refresh');
             clearInterval(mapRefreshInterval);
-            if (this.checked) {
+            if (autoRefresh && autoRefresh.checked) {
                 mapRefreshInterval = setInterval(refreshMapPositions, 60000);
             }
-        };
-    }
-
-    // Resize map when view becomes visible
-    setTimeout(function() {
-        if (ambulanceMap) google.maps.event.trigger(ambulanceMap, 'resize');
-    }, 100);
+            if (autoRefresh) {
+                autoRefresh.onchange = function() {
+                    clearInterval(mapRefreshInterval);
+                    if (this.checked) {
+                        mapRefreshInterval = setInterval(refreshMapPositions, 60000);
+                    }
+                };
+            }
+        } catch (err) {
+            console.error('loadMapView error:', err);
+        }
+    }, 200);
 }
 
 /**
@@ -1730,21 +1750,33 @@ function initAmbulanceMap() {
  * Odświeża pozycje karetek na mapie
  */
 async function refreshMapPositions() {
-    try {
-        var result = await apiGet({ action: 'getAmbulancePositions' });
-        var positions = [];
+    var vehicleListEl = document.getElementById('map-vehicle-list');
 
-        if (result && result.data) {
-            positions = result.data;
-        } else if (Array.isArray(result)) {
+    try {
+        // Pokaż loading
+        if (vehicleListEl) {
+            vehicleListEl.innerHTML = '<div class="map-no-data"><span class="material-icons-round" style="animation:spin 1s linear infinite;">refresh</span> Ładowanie...</div>';
+        }
+
+        var result = await apiGet({ action: 'getAmbulancePositions' });
+
+        // apiGet zwraca data.data (response wrapper), więc result = tablica pozycji
+        var positions = [];
+        if (Array.isArray(result)) {
             positions = result;
+        } else if (result && Array.isArray(result.data)) {
+            positions = result.data;
         }
 
         // Wyczyść stare markery
         ambulanceMarkers.forEach(function(m) { m.setMap(null); });
         ambulanceMarkers = [];
 
-        var vehicleListEl = document.getElementById('map-vehicle-list');
+        if (!ambulanceMap || typeof google === 'undefined') {
+            if (vehicleListEl) vehicleListEl.innerHTML = '<div class="map-no-data">Mapa niezainicjalizowana</div>';
+            return;
+        }
+
         var listHtml = '';
         var bounds = new google.maps.LatLngBounds();
         var hasPositions = false;
@@ -1752,21 +1784,27 @@ async function refreshMapPositions() {
         // Dodaj bazę do bounds
         bounds.extend({ lat: 50.0919, lng: 18.2196 });
 
+        if (positions.length === 0) {
+            if (vehicleListEl) vehicleListEl.innerHTML = '<div class="map-no-data">Brak karetek w systemie.<br>Sprawdź arkusz KARETKI.</div>';
+            return;
+        }
+
         positions.forEach(function(pos) {
             var statusColor = getAmbulanceStatusColor(pos.workerStatus || pos.status);
             var statusLabel = pos.workerStatus || pos.status || 'Nieznany';
 
             // Sidebar list item
-            listHtml += '<div class="map-vehicle-card" data-nr="' + pos.nr + '" onclick="focusAmbulance(' + pos.nr + ')">' +
+            listHtml += '<div class="map-vehicle-card" data-nr="' + pos.nr + '" onclick="focusAmbulance(\'' + pos.nr + '\')">' +
                 '<div class="map-vehicle-header">' +
                     '<span class="map-vehicle-nr">Karetka ' + pos.nr + '</span>' +
                     '<span class="map-vehicle-status" style="background:' + statusColor + '20; color:' + statusColor + ';">' +
-                        '<span class="map-legend-dot" style="background:' + statusColor + ';"></span>' + statusLabel +
+                        '<span class="map-legend-dot" style="background:' + statusColor + ';"></span> ' + statusLabel +
                     '</span>' +
                 '</div>' +
                 '<div class="map-vehicle-info">' +
-                    (pos.worker ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">person</span> ' + escHtml(pos.worker) + '</div>' : '') +
+                    (pos.worker ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">person</span> ' + escHtml(pos.worker) + '</div>' : '<div style="color:#999;">Brak przypisanego pracownika</div>') +
                     (pos.registration ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">directions_car</span> ' + escHtml(pos.registration) + '</div>' : '') +
+                    (pos.lat && pos.lng ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:#22c55e;">gps_fixed</span> GPS aktywny</div>' : '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:#999;">gps_off</span> Brak GPS' + (pos.gpsId ? '' : ' (brak GPS_Cartrack_ID)') + '</div>') +
                     (pos.address ? '<div class="map-vehicle-address"><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">location_on</span> ' + escHtml(pos.address) + '</div>' : '') +
                     (pos.speed > 0 ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">speed</span> ' + pos.speed + ' km/h</div>' : '') +
                 '</div>' +
@@ -1788,6 +1826,8 @@ async function refreshMapPositions() {
 
                 marker._vehicleNr = pos.nr;
                 marker._vehicleData = pos;
+                var mStatusColor = statusColor;
+                var mStatusLabel = statusLabel;
 
                 marker.addListener('click', function() {
                     var p = this._vehicleData;
@@ -1795,7 +1835,7 @@ async function refreshMapPositions() {
                         '<div style="font-weight:700;font-size:15px;margin-bottom:8px;">Karetka ' + p.nr + '</div>' +
                         (p.registration ? '<div style="margin-bottom:4px;color:#666;"><strong>Rejestracja:</strong> ' + p.registration + '</div>' : '') +
                         (p.worker ? '<div style="margin-bottom:4px;"><strong>Pracownik:</strong> ' + p.worker + '</div>' : '') +
-                        '<div style="margin-bottom:4px;"><strong>Status:</strong> <span style="color:' + statusColor + ';font-weight:600;">' + statusLabel + '</span></div>' +
+                        '<div style="margin-bottom:4px;"><strong>Status:</strong> <span style="color:' + mStatusColor + ';font-weight:600;">' + mStatusLabel + '</span></div>' +
                         (p.address ? '<div style="margin-bottom:4px;"><strong>Lokalizacja:</strong> ' + p.address + '</div>' : '') +
                         (p.speed > 0 ? '<div style="margin-bottom:4px;"><strong>Prędkość:</strong> ' + p.speed + ' km/h</div>' : '') +
                         (p.lastUpdate ? '<div style="font-size:11px;color:#999;margin-top:6px;">Aktualizacja: ' + p.lastUpdate + '</div>' : '') +
@@ -1809,18 +1849,21 @@ async function refreshMapPositions() {
         });
 
         if (vehicleListEl) {
-            vehicleListEl.innerHTML = listHtml || '<div class="map-no-data">Brak danych o karetkach</div>';
+            vehicleListEl.innerHTML = listHtml;
         }
 
         // Dopasuj widok mapy
         if (hasPositions && ambulanceMap) {
             ambulanceMap.fitBounds(bounds, { padding: 60 });
-            if (ambulanceMap.getZoom() > 15) ambulanceMap.setZoom(15);
+            // Poczekaj aż fitBounds się zakończy przed sprawdzeniem zoom
+            google.maps.event.addListenerOnce(ambulanceMap, 'idle', function() {
+                if (ambulanceMap.getZoom() > 15) ambulanceMap.setZoom(15);
+            });
         }
 
     } catch (error) {
         console.error('Błąd odświeżania mapy:', error);
-        if (typeof toast !== 'undefined') toast.error('Nie udało się pobrać pozycji karetek');
+        if (vehicleListEl) vehicleListEl.innerHTML = '<div class="map-no-data">Błąd: ' + error.message + '</div>';
     }
 }
 
