@@ -94,6 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Filtr daty - domyślnie dzisiaj
     document.getElementById('filter-date').value = formatDateISO(new Date());
 
+    // Google Places Autocomplete na polach adresowych
+    initAddressAutocomplete();
+
     // Załaduj dashboard
     loadDashboard();
 });
@@ -511,6 +514,45 @@ async function loadWorkersView() {
                 }
             }
         }
+    }
+}
+
+// ============================================================
+// GOOGLE PLACES AUTOCOMPLETE
+// ============================================================
+
+function initAddressAutocomplete() {
+    if (typeof google === 'undefined' || !google.maps || !google.maps.places) {
+        console.log('Google Maps API niedostępne - autocomplete wyłączone');
+        return;
+    }
+
+    var options = {
+        componentRestrictions: { country: 'pl' },
+        fields: ['formatted_address', 'name']
+    };
+
+    var fromInput = document.getElementById('f-from');
+    var toInput = document.getElementById('f-to');
+
+    if (fromInput) {
+        var acFrom = new google.maps.places.Autocomplete(fromInput, options);
+        acFrom.addListener('place_changed', function() {
+            var place = acFrom.getPlace();
+            if (place && place.formatted_address) {
+                fromInput.value = place.formatted_address;
+            }
+        });
+    }
+
+    if (toInput) {
+        var acTo = new google.maps.places.Autocomplete(toInput, options);
+        acTo.addListener('place_changed', function() {
+            var place = acTo.getPlace();
+            if (place && place.formatted_address) {
+                toInput.value = place.formatted_address;
+            }
+        });
     }
 }
 
