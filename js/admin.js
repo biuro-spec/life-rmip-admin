@@ -1,0 +1,572 @@
+/**
+ * Life RMiP - Panel Dyspozytorski
+ * ================================
+ */
+
+// ============================================================
+// NAWIGACJA
+// ============================================================
+
+const viewTitles = {
+    'dashboard': 'Dashboard',
+    'new-order': 'Nowe zlecenie',
+    'orders': 'Wszystkie zlecenia',
+    'calculator': 'Kalkulator cen',
+    'reports': 'Rozliczenia',
+    'workers': 'Pracownicy'
+};
+
+function showView(viewId) {
+    // Ukryj wszystkie widoki
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+    // Pokaż wybrany
+    const view = document.getElementById('view-' + viewId);
+    if (view) view.classList.add('active');
+
+    const nav = document.querySelector('[data-view="' + viewId + '"]');
+    if (nav) nav.classList.add('active');
+
+    // Tytuł strony
+    document.getElementById('page-title').textContent = viewTitles[viewId] || viewId;
+
+    // Załaduj dane widoku
+    switch (viewId) {
+        case 'dashboard': loadDashboard(); break;
+        case 'orders': loadOrdersList(); break;
+        case 'workers': loadWorkersView(); break;
+        case 'new-order': initOrderForm(); break;
+    }
+
+    // Zamknij sidebar na mobile
+    document.getElementById('sidebar').classList.remove('open');
+}
+
+// ============================================================
+// INICJALIZACJA
+// ============================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Nawigacja
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            showView(item.dataset.view);
+        });
+    });
+
+    // Menu toggle (mobile)
+    document.getElementById('menu-toggle').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.toggle('open');
+    });
+
+    // Zegar
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('current-time').textContent =
+            now.toLocaleDateString('pl-PL') + ' ' +
+            now.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+    }
+    updateClock();
+    setInterval(updateClock, 30000);
+
+    // Formularz zlecenia - listener
+    document.getElementById('order-form').addEventListener('submit', handleOrderSubmit);
+
+    // Kontrahent -> pokaż stawki
+    document.getElementById('f-contractor').addEventListener('change', updateRatePreview);
+
+    // Typ pacjenta -> pokaż/ukryj pracownik 2
+    document.getElementById('f-patient-type').addEventListener('change', () => {
+        const isLying = document.getElementById('f-patient-type').value === 'Leżący';
+        document.getElementById('f-worker2').parentElement.style.opacity = isLying ? '1' : '0.4';
+    });
+
+    // Admin logout
+    document.getElementById('admin-logout').addEventListener('click', () => {
+        if (confirm('Wylogować się?')) {
+            session.clearSession();
+            window.location.href = '../app/index.html';
+        }
+    });
+
+    // Filtr daty - domyślnie dzisiaj
+    document.getElementById('filter-date').value = formatDateISO(new Date());
+
+    // Załaduj dashboard
+    loadDashboard();
+});
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+
+async function loadDashboard() {
+    const today = formatDateISO(new Date());
+
+    // Pobierz zlecenia na dziś
+    if (API_MODE === 'api') {
+        const result = await apiGet({ action: 'getOrders', date: today });
+        if (result) {
+            renderDashboard(result);
+            return;
+        }
+    }
+
+    // Mock data fallback
+    renderDashboard(mockOrders.filter(o => o.date === today));
+}
+
+function renderDashboard(orders) {
+    // Statystyki
+    document.getElementById('stat-today-total').textContent = orders.length;
+    document.getElementById('stat-in-progress').textContent =
+        orders.filter(o => {
+            var s = o.Status_Zlecenia || o.status || '';
+            return s === 'W trasie do pacjenta' || s === 'Z pacjentem' || s === 'in_transit' || s === 'with_patient';
+        }).length;
+    document.getElementById('stat-completed').textContent =
+        orders.filter(o => {
+            var s = o.Status_Zlecenia || o.status || '';
+            return s === 'Zakończone' || s === 'Do rozliczenia' || s === 'Rozliczone' || s === 'completed';
+        }).length;
+    document.getElementById('stat-scheduled').textContent =
+        orders.filter(o => {
+            var s = o.Status_Zlecenia || o.status || '';
+            return s === 'Zaplanowane' || s === 'scheduled' || s === 'available';
+        }).length;
+
+    // Tabela zleceń
+    const tbody = document.getElementById('dashboard-orders-body');
+    tbody.innerHTML = '';
+
+    if (orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#999; padding:40px;">Brak zleceń na dzisiaj</td></tr>';
+        return;
+    }
+
+    orders.forEach(o => {
+        const status = o.Status_Zlecenia || mapStatusForDisplay(o.status);
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td>' + (o.Godzina_Zaplanowana || o.time || '-') + '</td>' +
+            '<td><strong>' + (o.Imie_Nazwisko || o.patientName || '-') + '</strong></td>' +
+            '<td>' + shortenAddr(o.Adres_Start || o.from || '') + ' → ' + shortenAddr(o.Adres_Koniec || o.to || '') + '</td>' +
+            '<td>' + (o.Kontrahent || o.contractor || '-') + '</td>' +
+            '<td>' + (o.Pracownik_1 || o.assignedWorker || '-') + '</td>' +
+            '<td>' + (o.Karetka_Nr || o.vehicle || '-') + '</td>' +
+            '<td>' + statusBadge(status) + '</td>';
+        tbody.appendChild(tr);
+    });
+
+    // Pracownicy
+    renderWorkersStatus();
+}
+
+async function renderWorkersStatus() {
+    const grid = document.getElementById('workers-status-grid');
+    const workers = ['Krzysztof', 'Aleks', 'Waldemar', 'Dawid', 'Piotrek'];
+
+    grid.innerHTML = workers.map(name => {
+        const initial = name.charAt(0);
+        return '<div class="worker-card">' +
+            '<div class="worker-avatar offline">' + initial + '</div>' +
+            '<div class="worker-details">' +
+                '<div class="worker-name">' + name + '</div>' +
+                '<div class="worker-status-text">Offline</div>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+
+    // Jeśli API, pobierz aktualne statusy
+    if (API_MODE === 'api') {
+        const result = await apiGet({ action: 'getWorkers' });
+        if (result) {
+            grid.innerHTML = result.map(w => {
+                var statusClass = 'offline';
+                var statusText = 'Offline';
+                if (w.status === 'Wolny') { statusClass = 'available'; statusText = 'Wolny'; }
+                else if (w.status === 'W trasie') { statusClass = 'in-transit'; statusText = 'W trasie'; }
+                else if (w.status === 'Z pacjentem') { statusClass = 'with-patient'; statusText = 'Z pacjentem'; }
+
+                return '<div class="worker-card">' +
+                    '<div class="worker-avatar ' + statusClass + '">' + w.name.charAt(0) + '</div>' +
+                    '<div class="worker-details">' +
+                        '<div class="worker-name">' + w.name + '</div>' +
+                        '<div class="worker-status-text">' + statusText + '</div>' +
+                        (w.vehicle ? '<div class="worker-vehicle">Karetka ' + w.vehicle + '</div>' : '') +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
+    }
+}
+
+// ============================================================
+// NOWE ZLECENIE
+// ============================================================
+
+function initOrderForm() {
+    // Ustaw domyślną datę na dziś
+    if (!document.getElementById('f-date').value) {
+        document.getElementById('f-date').value = formatDateISO(new Date());
+    }
+    updateRatePreview();
+}
+
+function updateRatePreview() {
+    const contractor = document.getElementById('f-contractor').value;
+    const preview = document.getElementById('rate-preview');
+
+    if (!contractor || contractor === 'NFZ') {
+        preview.style.display = 'none';
+        return;
+    }
+
+    // Znajdź stawkę
+    var rate = STAWKI_LOCAL[contractor];
+    if (!rate) {
+        preview.style.display = 'none';
+        return;
+    }
+
+    document.getElementById('rate-hourly').textContent = rate.godz;
+    document.getElementById('rate-km').textContent = rate.km;
+    preview.style.display = 'block';
+}
+
+// Lokalna kopia stawek do podglądu
+const STAWKI_LOCAL = {
+    'Szpital Racibórz': { godz: 120, km: 4 },
+    'ScanMed': { godz: 110, km: 4 },
+    'Kietrz': { godz: 70, km: 4 },
+    'POZ Krzyżanowice': { godz: 60, km: 4 },
+    'Prywatne': { godz: 80, km: 4 }
+};
+
+async function handleOrderSubmit(e) {
+    e.preventDefault();
+
+    const data = {
+        kontrahent: document.getElementById('f-contractor').value,
+        typ_transportu: document.getElementById('f-transport-type').value,
+        pilnosc: document.getElementById('f-urgency').value,
+        data_transportu: document.getElementById('f-date').value,
+        godzina_zaplanowana: document.getElementById('f-time').value,
+        imie_nazwisko: document.getElementById('f-patient-name').value,
+        pesel: document.getElementById('f-pesel').value,
+        telefon: document.getElementById('f-phone').value,
+        typ_pacjenta: document.getElementById('f-patient-type').value,
+        rodzina_pomoc: document.getElementById('f-family-help').value,
+        adres_start: document.getElementById('f-from').value,
+        adres_koniec: document.getElementById('f-to').value,
+        karetka_nr: document.getElementById('f-vehicle').value,
+        pracownik_1: document.getElementById('f-worker1').value,
+        pracownik_2: document.getElementById('f-worker2').value,
+        uwagi_medyczne: document.getElementById('f-medical-notes').value,
+        uwagi: document.getElementById('f-notes').value
+    };
+
+    if (API_MODE === 'api') {
+        const result = await apiPost({ action: 'createOrder', data: data });
+        if (result) {
+            showToast('Zlecenie utworzone: ' + result.id, 'success');
+            resetOrderForm();
+            return;
+        } else {
+            showToast('Błąd tworzenia zlecenia', 'error');
+            return;
+        }
+    }
+
+    // Mock mode
+    showToast('Zlecenie utworzone (tryb testowy)', 'success');
+    resetOrderForm();
+}
+
+function resetOrderForm() {
+    document.getElementById('order-form').reset();
+    document.getElementById('rate-preview').style.display = 'none';
+    document.getElementById('f-date').value = formatDateISO(new Date());
+}
+
+// ============================================================
+// LISTA ZLECEŃ
+// ============================================================
+
+async function loadOrdersList() {
+    const date = document.getElementById('filter-date').value;
+    const contractor = document.getElementById('filter-contractor').value;
+    const status = document.getElementById('filter-status').value;
+
+    const tbody = document.getElementById('orders-list-body');
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px; color:#999;">Ładowanie...</td></tr>';
+
+    var orders = [];
+
+    if (API_MODE === 'api') {
+        const params = { action: 'getOrders' };
+        if (date) params.date = date;
+        if (contractor) params.contractor = contractor;
+        if (status) params.status = status;
+
+        const result = await apiGet(params);
+        if (result) orders = result;
+    } else {
+        // Mock
+        orders = mockOrders;
+        if (date) orders = orders.filter(o => o.date === date);
+    }
+
+    tbody.innerHTML = '';
+
+    if (orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color:#999; padding:40px;">Brak zleceń</td></tr>';
+        return;
+    }
+
+    orders.forEach(o => {
+        const s = o.Status_Zlecenia || mapStatusForDisplay(o.status);
+        const kwota = o.Lacznie || '';
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td style="font-size:11px;">' + (o.ID_Zlecenia || o.id || '-') + '</td>' +
+            '<td>' + formatDateShort(o.Data_Transportu || o.date) + '</td>' +
+            '<td>' + (o.Godzina_Zaplanowana || o.time || '-') + '</td>' +
+            '<td><strong>' + (o.Imie_Nazwisko || o.patientName || '-') + '</strong></td>' +
+            '<td style="max-width:150px; overflow:hidden; text-overflow:ellipsis;">' + (o.Adres_Start || o.from || '-') + '</td>' +
+            '<td style="max-width:150px; overflow:hidden; text-overflow:ellipsis;">' + (o.Adres_Koniec || o.to || '-') + '</td>' +
+            '<td>' + (o.Kontrahent || o.contractor || '-') + '</td>' +
+            '<td>' + (o.Pracownik_1 || o.assignedWorker || '-') + '</td>' +
+            '<td>' + statusBadge(s) + '</td>' +
+            '<td>' + (kwota ? kwota + ' zł' : '-') + '</td>';
+        tbody.appendChild(tr);
+    });
+}
+
+// ============================================================
+// KALKULATOR CEN
+// ============================================================
+
+function calculatePrice() {
+    const km = parseFloat(document.getElementById('calc-km').value) || 0;
+    const hours = parseFloat(document.getElementById('calc-hours').value) || 0;
+    const rateH = parseFloat(document.getElementById('calc-rate-h').value) || 80;
+    const rateKm = parseFloat(document.getElementById('calc-rate-km').value) || 4;
+    const discount = parseFloat(document.getElementById('calc-discount').value) || 0;
+
+    const timeCost = Math.round(hours * rateH * 100) / 100;
+    const kmCost = Math.round(km * rateKm * 100) / 100;
+    const basePrice = timeCost + kmCost;
+    const finalPrice = Math.max(0, basePrice - discount);
+
+    document.getElementById('calc-time-cost').textContent = timeCost.toFixed(2) + ' zł';
+    document.getElementById('calc-km-cost').textContent = kmCost.toFixed(2) + ' zł';
+    document.getElementById('calc-base-price').textContent = basePrice.toFixed(2) + ' zł';
+    document.getElementById('calc-discount-val').textContent = '-' + discount.toFixed(2) + ' zł';
+    document.getElementById('calc-final-price').textContent = finalPrice.toFixed(2) + ' zł';
+
+    document.getElementById('calc-result').style.display = 'block';
+}
+
+// ============================================================
+// ROZLICZENIA / RAPORTY
+// ============================================================
+
+async function loadReport() {
+    const contractor = document.getElementById('report-contractor').value;
+    const month = document.getElementById('report-month').value;
+    const year = document.getElementById('report-year').value;
+
+    if (API_MODE === 'api') {
+        const result = await apiGet({
+            action: 'getMonthlyReport',
+            contractor: contractor,
+            month: month,
+            year: year
+        });
+
+        if (result) {
+            renderReport(result);
+            return;
+        }
+    }
+
+    // Mock
+    renderReport({
+        totalOrders: 0,
+        totalHours: 0,
+        totalKm: 0,
+        totalRevenue: 0,
+        orders: []
+    });
+}
+
+function renderReport(data) {
+    document.getElementById('report-results').style.display = 'block';
+    document.getElementById('report-orders').textContent = data.totalOrders || 0;
+    document.getElementById('report-hours').textContent = (data.totalHours || 0).toFixed(2);
+    document.getElementById('report-km').textContent = data.totalKm || 0;
+    document.getElementById('report-total').textContent = (data.totalRevenue || 0).toFixed(2) + ' zł';
+
+    const tbody = document.getElementById('report-table-body');
+    tbody.innerHTML = '';
+
+    var orders = data.orders || [];
+    if (orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#999; padding:30px;">Brak danych</td></tr>';
+        return;
+    }
+
+    orders.forEach(o => {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td>' + formatDateShort(o.Data_Transportu) + '</td>' +
+            '<td>' + (o.Imie_Nazwisko || '-') + '</td>' +
+            '<td style="font-size:12px;">' + (o.Adres_Start || '-') + ' → ' + (o.Adres_Koniec || '-') + '</td>' +
+            '<td>' + (o.Laczny_Czas_Dziesietny || '-') + '</td>' +
+            '<td>' + (o.Kilometry || '-') + '</td>' +
+            '<td>' + (o.Obliczenie_Czas ? o.Obliczenie_Czas + ' zł' : '-') + '</td>' +
+            '<td>' + (o.Obliczenie_Km ? o.Obliczenie_Km + ' zł' : '-') + '</td>' +
+            '<td><strong>' + (o.Lacznie ? o.Lacznie + ' zł' : '-') + '</strong></td>';
+        tbody.appendChild(tr);
+    });
+}
+
+async function generateBillingSheet() {
+    if (API_MODE !== 'api') {
+        showToast('Generowanie arkuszy wymaga połączenia z API', 'error');
+        return;
+    }
+
+    const contractor = document.getElementById('report-contractor').value;
+    const month = document.getElementById('report-month').value;
+    const year = document.getElementById('report-year').value;
+
+    showToast('Generowanie arkusza...', 'success');
+
+    const result = await apiPost({
+        action: 'generateBillingSheet',
+        contractor: contractor,
+        month: parseInt(month),
+        year: parseInt(year)
+    });
+
+    if (result) {
+        showToast('Arkusz wygenerowany: ' + result.sheetName + ' (' + result.totalRevenue + ' zł)', 'success');
+    } else {
+        showToast('Błąd generowania arkusza', 'error');
+    }
+}
+
+// ============================================================
+// PRACOWNICY
+// ============================================================
+
+async function loadWorkersView() {
+    const grid = document.getElementById('workers-detail-grid');
+    const workers = ['Krzysztof', 'Aleks', 'Waldemar', 'Dawid', 'Piotrek'];
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    grid.innerHTML = workers.map(name => {
+        return '<div class="worker-detail-card">' +
+            '<div class="worker-detail-header">' +
+                '<div class="worker-detail-avatar">' + name.charAt(0) + '</div>' +
+                '<div>' +
+                    '<div class="worker-detail-name">' + name + '</div>' +
+                    '<div class="worker-detail-status">Ładowanie...</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="worker-detail-stats">' +
+                '<div class="worker-stat"><span class="worker-stat-value">-</span><span class="worker-stat-label">Zleceń</span></div>' +
+                '<div class="worker-stat"><span class="worker-stat-value">-</span><span class="worker-stat-label">Godzin</span></div>' +
+                '<div class="worker-stat"><span class="worker-stat-value">-</span><span class="worker-stat-label">Km</span></div>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+
+    // Pobierz dane z API
+    if (API_MODE === 'api') {
+        for (var i = 0; i < workers.length; i++) {
+            const result = await apiGet({
+                action: 'getWorkerReport',
+                worker: workers[i],
+                month: month,
+                year: year
+            });
+
+            if (result) {
+                const cards = grid.querySelectorAll('.worker-detail-card');
+                const card = cards[i];
+                if (card) {
+                    card.querySelector('.worker-detail-status').textContent =
+                        result.totalWorkDays + ' dni w tym miesiącu';
+                    const stats = card.querySelectorAll('.worker-stat-value');
+                    stats[0].textContent = result.totalOrders;
+                    stats[1].textContent = result.totalWorkHours;
+                    stats[2].textContent = result.totalKm;
+                }
+            }
+        }
+    }
+}
+
+// ============================================================
+// POMOCNICZE
+// ============================================================
+
+function statusBadge(status) {
+    var cls = 'zaplanowane';
+    if (status.indexOf('trasie') > -1) cls = 'w-trasie';
+    else if (status.indexOf('pacjentem') > -1) cls = 'z-pacjentem';
+    else if (status.indexOf('Zakończone') > -1 || status === 'completed') cls = 'zakonczone';
+    else if (status.indexOf('rozliczenia') > -1) cls = 'do-rozliczenia';
+    else if (status.indexOf('Rozliczone') > -1) cls = 'rozliczone';
+    return '<span class="status-badge ' + cls + '">' + status + '</span>';
+}
+
+function mapStatusForDisplay(frontendStatus) {
+    var map = {
+        'available': 'Zaplanowane',
+        'scheduled': 'Zaplanowane',
+        'in_transit': 'W trasie do pacjenta',
+        'with_patient': 'Z pacjentem',
+        'completed': 'Zakończone'
+    };
+    return map[frontendStatus] || frontendStatus || '-';
+}
+
+function shortenAddr(addr) {
+    if (!addr) return '-';
+    var parts = addr.split(',');
+    return parts[0].trim();
+}
+
+function formatDateShort(dateVal) {
+    if (!dateVal) return '-';
+    try {
+        var d = new Date(dateVal);
+        return String(d.getDate()).padStart(2, '0') + '.' +
+            String(d.getMonth() + 1).padStart(2, '0');
+    } catch (e) {
+        return String(dateVal);
+    }
+}
+
+function showToast(message, type) {
+    var toast = document.getElementById('toast');
+    var icon = document.getElementById('toast-icon');
+    var msg = document.getElementById('toast-message');
+
+    toast.className = 'toast ' + (type || 'success');
+    icon.textContent = type === 'error' ? 'error' : 'check_circle';
+    msg.textContent = message;
+
+    toast.classList.add('show');
+    setTimeout(function() {
+        toast.classList.remove('show');
+    }, 3500);
+}
