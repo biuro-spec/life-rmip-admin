@@ -85,7 +85,14 @@ const session = {
     storage.remove('currentVehicle');
     storage.remove('workStartTime');
   },
-  isLoggedIn: () => !!storage.get('currentWorker')
+  isLoggedIn: () => !!storage.get('currentWorker'),
+
+  // Admin session
+  getAdminSession: () => storage.get('adminSession'),
+  setAdminSession: (obj) => storage.set('adminSession', obj),
+  clearAdminSession: () => storage.remove('adminSession'),
+  isAdminLoggedIn: () => !!storage.get('adminSession'),
+  getSession: function() { return this.getAdminSession(); }
 };
 
 // Status helpers

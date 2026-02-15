@@ -10,9 +10,46 @@
     <link rel="icon" type="image/png" href="assets/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link rel="stylesheet" href="css/admin.css?v=16">
+    <link rel="stylesheet" href="css/admin.css?v=17">
 </head>
 <body>
+    <!-- Admin Login Overlay -->
+    <div class="admin-login-overlay" id="admin-login-overlay">
+        <div class="admin-login-card">
+            <img src="assets/logo.png" alt="Life" class="admin-login-logo">
+            <h1 class="admin-login-brand">Life RMiP</h1>
+            <p class="admin-login-subtitle">Panel Administracyjny</p>
+            <div class="admin-login-form">
+                <div class="form-group">
+                    <label class="admin-login-label">Dyspozytor</label>
+                    <select id="admin-login-select" class="admin-login-select">
+                        <option value="">Wybierz osobę...</option>
+                        <option value="mariusz">Mariusz</option>
+                        <option value="natka">Natka</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="admin-login-label">PIN</label>
+                    <div class="pin-boxes" id="admin-pin-boxes">
+                        <input type="password" class="pin-box" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                        <input type="password" class="pin-box" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                        <input type="password" class="pin-box" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                        <input type="password" class="pin-box" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                    </div>
+                </div>
+                <div class="admin-login-error" id="admin-login-error" style="display:none;">
+                    <span class="material-icons-round">error</span>
+                    <span id="admin-login-error-text">Nieprawidłowy PIN</span>
+                </div>
+                <button class="admin-login-btn" id="admin-login-btn" disabled>
+                    <span class="material-icons-round">login</span>
+                    Zaloguj się
+                </button>
+            </div>
+            <p class="admin-login-footer">Life Transport Medyczny &copy; 2026</p>
+        </div>
+    </div>
+
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -388,22 +425,12 @@
                                 <label class="form-label">Pracownik 1</label>
                                 <select id="f-worker1">
                                     <option value="">-- Później --</option>
-                                    <option value="Krzysztof">Krzysztof</option>
-                                    <option value="Aleks">Aleks</option>
-                                    <option value="Waldemar">Waldemar</option>
-                                    <option value="Dawid">Dawid</option>
-                                    <option value="Piotrek">Piotrek</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Pracownik 2 (leżący)</label>
                                 <select id="f-worker2">
                                     <option value="">-- Nie dotyczy --</option>
-                                    <option value="Krzysztof">Krzysztof</option>
-                                    <option value="Aleks">Aleks</option>
-                                    <option value="Waldemar">Waldemar</option>
-                                    <option value="Dawid">Dawid</option>
-                                    <option value="Piotrek">Piotrek</option>
                                 </select>
                             </div>
                         </div>
@@ -732,6 +759,10 @@
                     <div class="panel-header">
                         <h2>Pracownicy</h2>
                         <div style="display:flex;align-items:center;gap:8px;">
+                            <button class="btn-primary-lg" id="add-worker-btn" style="padding:10px 16px;font-size:13px;">
+                                <span class="material-icons-round" style="font-size:18px;">person_add</span>
+                                Dodaj pracownika
+                            </button>
                             <div class="topbar-search" style="max-width:260px;">
                                 <span class="material-icons-round topbar-search-icon">search</span>
                                 <input placeholder="Szukaj pracownika..." id="workers-search-input">
@@ -936,22 +967,12 @@
                             <label class="form-label">Pracownik 1</label>
                             <select id="edit-worker1">
                                 <option value="">-- Brak --</option>
-                                <option value="Krzysztof">Krzysztof</option>
-                                <option value="Aleks">Aleks</option>
-                                <option value="Waldemar">Waldemar</option>
-                                <option value="Dawid">Dawid</option>
-                                <option value="Piotrek">Piotrek</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Pracownik 2</label>
                             <select id="edit-worker2">
                                 <option value="">-- Brak --</option>
-                                <option value="Krzysztof">Krzysztof</option>
-                                <option value="Aleks">Aleks</option>
-                                <option value="Waldemar">Waldemar</option>
-                                <option value="Dawid">Dawid</option>
-                                <option value="Piotrek">Piotrek</option>
                             </select>
                         </div>
                     </div>
@@ -974,6 +995,128 @@
                     <span class="material-icons-round">save</span>
                     Zapisz zmiany
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Dodaj pracownika -->
+    <div class="modal-overlay" id="add-worker-modal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Nowy pracownik</h3>
+                <button class="modal-close" onclick="closeModal('add-worker-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Imię i nazwisko</label>
+                    <input type="text" id="new-worker-name" placeholder="np. Jan Kowalski">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Login</label>
+                    <input type="text" id="new-worker-login" placeholder="np. jan">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Rola</label>
+                    <select id="new-worker-role">
+                        <option value="Ratownik Medyczny">Ratownik Medyczny</option>
+                        <option value="Kierowca Ambulansu">Kierowca Ambulansu</option>
+                        <option value="Sanitariusz">Sanitariusz</option>
+                        <option value="Logistyk Terenowy">Logistyk Terenowy</option>
+                        <option value="Kierownik Zespołu">Kierownik Zespołu</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('add-worker-modal')">Anuluj</button>
+                <button class="btn-primary-lg" id="save-new-worker-btn">
+                    <span class="material-icons-round">person_add</span>
+                    Dodaj pracownika
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Ustaw PIN pracownika -->
+    <div class="modal-overlay" id="set-pin-modal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Ustaw PIN pracownika</h3>
+                <button class="modal-close" onclick="closeModal('set-pin-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body" style="text-align:center;">
+                <p class="set-pin-worker-name" id="set-pin-worker-name" style="font-size:16px;font-weight:600;margin-bottom:16px;"></p>
+                <label class="form-label" style="text-align:center;display:block;">Nowy PIN (4 cyfry)</label>
+                <div class="pin-boxes" id="set-pin-boxes" style="margin-top:8px;">
+                    <input type="password" class="pin-box" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                    <input type="password" class="pin-box" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                    <input type="password" class="pin-box" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                    <input type="password" class="pin-box" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('set-pin-modal')">Anuluj</button>
+                <button class="btn-primary-lg" id="save-pin-btn">
+                    <span class="material-icons-round">lock</span>
+                    Zapisz PIN
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Szczegóły pracownika -->
+    <div class="modal-overlay" id="worker-details-modal" style="display:none;">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <div class="worker-details-header">
+                    <div class="worker-detail-avatar lg" id="wd-avatar">--</div>
+                    <div>
+                        <h3 id="wd-name" style="margin:0;font-size:18px;">-</h3>
+                        <span id="wd-role" style="color:var(--text-secondary);font-size:13px;">-</span>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeModal('worker-details-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="worker-details-stats">
+                    <div class="wd-stat">
+                        <span class="material-icons-round wd-stat-icon">today</span>
+                        <span class="wd-stat-label">Dzisiaj</span>
+                        <span class="wd-stat-value" id="wd-today-hours">-</span>
+                    </div>
+                    <div class="wd-stat">
+                        <span class="material-icons-round wd-stat-icon">date_range</span>
+                        <span class="wd-stat-label">Ten tydzień</span>
+                        <span class="wd-stat-value" id="wd-week-hours">-</span>
+                    </div>
+                    <div class="wd-stat">
+                        <span class="material-icons-round wd-stat-icon">calendar_month</span>
+                        <span class="wd-stat-label">Ten miesiąc</span>
+                        <span class="wd-stat-value" id="wd-month-hours">-</span>
+                    </div>
+                </div>
+                <h4 style="margin-top:24px;border-left:4px solid var(--primary);padding-left:12px;">Historia sesji</h4>
+                <table class="data-table" id="wd-sessions-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Start</th>
+                            <th>Koniec</th>
+                            <th>Czas pracy</th>
+                        </tr>
+                    </thead>
+                    <tbody id="wd-sessions-body">
+                        <tr><td colspan="4" style="text-align:center;color:var(--text-secondary);padding:24px;">Ładowanie...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('worker-details-modal')">Zamknij</button>
             </div>
         </div>
     </div>
@@ -1015,6 +1158,6 @@
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA0tTZTp2bZBb2cbbSBcnxEoPXERnfx1w8&libraries=places&language=pl"></script>
     <script src="js/utils.js"></script>
     <script src="js/api.js"></script>
-    <script src="js/admin.js?v=16"></script>
+    <script src="js/admin.js?v=17"></script>
 </body>
 </html>

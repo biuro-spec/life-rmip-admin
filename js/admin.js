@@ -75,7 +75,171 @@ function showView(viewId) {
 // INICJALIZACJA
 // ============================================================
 
+// ============================================================
+// WORKERS CACHE
+// ============================================================
+var workersCache = [];
+
+async function loadWorkersList() {
+    var list = await getWorkersListAPI();
+    if (list && list.length) {
+        workersCache = list;
+        storage.set('workersCache', list);
+    } else {
+        // Fallback from localStorage
+        workersCache = storage.get('workersCache') || [];
+    }
+    populateWorkerSelects();
+    return workersCache;
+}
+
+function populateWorkerSelects() {
+    var selectIds = ['f-worker1', 'f-worker2', 'edit-worker1', 'edit-worker2'];
+    selectIds.forEach(function(id) {
+        var sel = document.getElementById(id);
+        if (!sel) return;
+        // Keep first option (placeholder)
+        var firstOpt = sel.options[0];
+        sel.innerHTML = '';
+        sel.appendChild(firstOpt);
+        workersCache.forEach(function(w) {
+            var opt = document.createElement('option');
+            opt.value = w.name;
+            opt.textContent = w.name;
+            sel.appendChild(opt);
+        });
+    });
+}
+
+// ============================================================
+// ADMIN LOGIN
+// ============================================================
+
+function showAdminLogin() {
+    var overlay = document.getElementById('admin-login-overlay');
+    if (overlay) overlay.style.display = 'flex';
+    var sidebar = document.getElementById('sidebar');
+    var mainContent = document.querySelector('.main-content');
+    var bottomNav = document.getElementById('mobile-bottom-nav');
+    if (sidebar) sidebar.style.display = 'none';
+    if (mainContent) mainContent.style.display = 'none';
+    if (bottomNav) bottomNav.style.display = 'none';
+
+    initPinBoxes('admin-pin-boxes', function() {
+        // Enable login button when all 4 digits entered
+        var boxes = document.querySelectorAll('#admin-pin-boxes .pin-box');
+        var allFilled = Array.from(boxes).every(function(b) { return b.value.length === 1; });
+        var btn = document.getElementById('admin-login-btn');
+        var sel = document.getElementById('admin-login-select');
+        btn.disabled = !(allFilled && sel.value);
+    });
+
+    document.getElementById('admin-login-select').addEventListener('change', function() {
+        var boxes = document.querySelectorAll('#admin-pin-boxes .pin-box');
+        var allFilled = Array.from(boxes).every(function(b) { return b.value.length === 1; });
+        document.getElementById('admin-login-btn').disabled = !(allFilled && this.value);
+    });
+
+    document.getElementById('admin-login-btn').addEventListener('click', handleAdminLogin);
+}
+
+async function handleAdminLogin() {
+    var login = document.getElementById('admin-login-select').value;
+    var boxes = document.querySelectorAll('#admin-pin-boxes .pin-box');
+    var pin = Array.from(boxes).map(function(b) { return b.value; }).join('');
+
+    if (!login || pin.length !== 4) return;
+
+    var btn = document.getElementById('admin-login-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons-round">hourglass_empty</span> Logowanie...';
+
+    var result = await loginAdminAPI(login, pin);
+
+    if (result.success) {
+        session.setAdminSession({
+            login: login,
+            name: result.data.name || login.charAt(0).toUpperCase() + login.slice(1),
+            loginTime: Date.now()
+        });
+        document.getElementById('admin-login-overlay').style.display = 'none';
+        var sidebar = document.getElementById('sidebar');
+        var mainContent = document.querySelector('.main-content');
+        var bottomNav = document.getElementById('mobile-bottom-nav');
+        if (sidebar) sidebar.style.removeProperty('display');
+        if (mainContent) mainContent.style.removeProperty('display');
+        if (bottomNav) bottomNav.style.removeProperty('display');
+        initAdminPanel();
+    } else {
+        var errEl = document.getElementById('admin-login-error');
+        document.getElementById('admin-login-error-text').textContent = result.message || 'Nieprawidłowy PIN';
+        errEl.style.display = 'flex';
+        boxes.forEach(function(b) { b.value = ''; b.classList.remove('filled'); });
+        boxes[0].focus();
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round">login</span> Zaloguj się';
+    }
+}
+
+function hideAdminLogin() {
+    var overlay = document.getElementById('admin-login-overlay');
+    if (overlay) overlay.style.display = 'none';
+    var sidebar = document.getElementById('sidebar');
+    var mainContent = document.querySelector('.main-content');
+    var bottomNav = document.getElementById('mobile-bottom-nav');
+    if (sidebar) sidebar.style.removeProperty('display');
+    if (mainContent) mainContent.style.removeProperty('display');
+    if (bottomNav) bottomNav.style.removeProperty('display');
+}
+
+// PIN boxes initialization (reusable for admin login + set-pin modal)
+function initPinBoxes(containerId, onChange) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var boxes = container.querySelectorAll('.pin-box');
+
+    boxes.forEach(function(box, i) {
+        box.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value.length === 1) {
+                this.classList.add('filled');
+                if (i < boxes.length - 1) boxes[i + 1].focus();
+            }
+            if (onChange) onChange();
+        });
+        box.addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' && !this.value && i > 0) {
+                boxes[i - 1].focus();
+                boxes[i - 1].value = '';
+                boxes[i - 1].classList.remove('filled');
+                if (onChange) onChange();
+            }
+        });
+        box.addEventListener('focus', function() { this.select(); });
+    });
+}
+
+function getPinValue(containerId) {
+    var boxes = document.querySelectorAll('#' + containerId + ' .pin-box');
+    return Array.from(boxes).map(function(b) { return b.value; }).join('');
+}
+
+function clearPinBoxes(containerId) {
+    var boxes = document.querySelectorAll('#' + containerId + ' .pin-box');
+    boxes.forEach(function(b) { b.value = ''; b.classList.remove('filled'); });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Check admin login first
+    if (!session.isAdminLoggedIn()) {
+        showAdminLogin();
+        return;
+    }
+    hideAdminLogin();
+    initAdminPanel();
+});
+
+function initAdminPanel() {
     // --- Sidebar mobile toggle + backdrop ---
     var sidebarEl = document.getElementById('sidebar');
     var backdropEl = document.getElementById('sidebar-backdrop');
@@ -162,9 +326,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Admin logout
     document.getElementById('admin-logout').addEventListener('click', () => {
-        if (confirm('Wylogować się?')) {
-            session.clearSession();
-            window.location.href = 'https://biuro-spec.github.io/life-rmip/';
+        if (confirm('Wylogować się z panelu?')) {
+            session.clearAdminSession();
+            window.location.reload();
         }
     });
 
@@ -195,11 +359,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Topbar user info sync
-    var dispName = session.getSession() ? session.getSession().name : 'Dyspozytor';
+    var adminSession = session.getAdminSession();
+    var dispName = adminSession ? adminSession.name : 'Dyspozytor';
     var userNameEl = document.getElementById('topbar-user-name');
     var userAvatarEl = document.getElementById('topbar-user-avatar');
     if (userNameEl) userNameEl.textContent = dispName;
     if (userAvatarEl) userAvatarEl.textContent = dispName.charAt(0).toUpperCase();
+
+    // Dispatcher name in sidebar
+    var dispNameEl = document.getElementById('dispatcher-name');
+    if (dispNameEl) dispNameEl.textContent = dispName;
 
     // Filtr daty - domyślnie dzisiaj
     document.getElementById('filter-date').value = formatDateISO(new Date());
@@ -219,9 +388,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Load workers list (populates selects + cache)
+    loadWorkersList();
+
+    // "Dodaj pracownika" button
+    var addWorkerBtn = document.getElementById('add-worker-btn');
+    if (addWorkerBtn) {
+        addWorkerBtn.addEventListener('click', function() {
+            openModal('add-worker-modal');
+        });
+    }
+
+    // Save new worker
+    var saveNewBtn = document.getElementById('save-new-worker-btn');
+    if (saveNewBtn) {
+        saveNewBtn.addEventListener('click', saveNewWorker);
+    }
+
+    // Set PIN modal init
+    initPinBoxes('set-pin-boxes');
+    var savePinBtn = document.getElementById('save-pin-btn');
+    if (savePinBtn) {
+        savePinBtn.addEventListener('click', savePinForWorker);
+    }
+
+    // Close menus when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.worker-menu-dropdown') && !e.target.closest('.worker-detail-more')) {
+            document.querySelectorAll('.worker-menu-dropdown').forEach(function(m) { m.remove(); });
+        }
+    });
+
     // Załaduj dashboard
     loadDashboard();
-});
+}
 
 // ============================================================
 // DASHBOARD
@@ -291,7 +491,7 @@ function renderDashboard(orders) {
 
 async function renderWorkersStatus() {
     const container = document.getElementById('workers-status-scroll');
-    const workers = ['Krzysztof', 'Aleks', 'Waldemar', 'Dawid', 'Piotrek'];
+    const workers = workersCache.length ? workersCache.map(function(w) { return w.name; }) : ['Krzysztof', 'Aleks', 'Waldemar', 'Dawid', 'Piotrek'];
 
     function renderScrollItem(name, statusClass) {
         var offlineClass = statusClass === 'offline' ? ' offline' : '';
@@ -827,11 +1027,13 @@ async function generateBillingSheet() {
 
 async function loadWorkersView() {
     var grid = document.getElementById('workers-detail-grid');
-    var workers = ['Krzysztof', 'Aleks', 'Waldemar', 'Dawid', 'Piotrek'];
-    var roles = ['Kierownik Zespołu', 'Logistyk Terenowy', 'Ratownik Medyczny', 'Kierowca Ambulansu', 'Ratownik Medyczny'];
     var now = new Date();
     var month = now.getMonth() + 1;
     var year = now.getFullYear();
+
+    // Ensure workers loaded
+    if (!workersCache.length) await loadWorkersList();
+    var workers = workersCache;
 
     function getInitials(name) {
         var parts = name.split(' ');
@@ -842,7 +1044,7 @@ async function loadWorkersView() {
     function statusClass(status) {
         if (!status) return 'offline';
         var s = status.toLowerCase();
-        if (s === 'available' || s === 'dostępny') return 'available';
+        if (s === 'available' || s === 'dostępny' || s === 'wolny') return 'available';
         if (s === 'in-transit' || s === 'w trasie') return 'in-transit';
         if (s === 'on-break' || s === 'przerwa') return 'on-break';
         return 'offline';
@@ -854,16 +1056,23 @@ async function loadWorkersView() {
         return labels[cls] || 'Niedostępny';
     }
 
-    grid.innerHTML = workers.map(function(name, idx) {
+    if (!workers.length) {
+        grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary);">Brak pracowników. Kliknij "Dodaj pracownika" aby dodać pierwszego.</div>';
+        return;
+    }
+
+    grid.innerHTML = workers.map(function(w) {
+        var name = w.name;
+        var login = w.login || name.toLowerCase();
+        var role = w.role || 'Pracownik';
         var initials = getInitials(name);
-        var role = roles[idx] || 'Pracownik';
-        return '<div class="worker-detail-card" data-worker="' + name + '">' +
+        return '<div class="worker-detail-card" data-worker="' + name + '" data-login="' + login + '">' +
             '<div class="worker-detail-header">' +
                 '<div class="worker-detail-avatar">' +
                     initials +
                     '<span class="status-dot offline"></span>' +
                 '</div>' +
-                '<button class="worker-detail-more"><span class="material-icons-round">more_vert</span></button>' +
+                '<button class="worker-detail-more" data-login="' + login + '" data-name="' + name + '"><span class="material-icons-round">more_vert</span></button>' +
             '</div>' +
             '<div class="worker-detail-info">' +
                 '<div class="worker-detail-name">' + name + '</div>' +
@@ -876,17 +1085,37 @@ async function loadWorkersView() {
             '</div>' +
             '<div class="worker-detail-footer">' +
                 '<span class="worker-status-label offline">Ładowanie...</span>' +
-                '<button class="worker-detail-link">Szczegóły <span class="material-icons-round" style="font-size:16px;">arrow_forward</span></button>' +
+                '<button class="worker-detail-link" data-login="' + login + '" data-name="' + name + '" data-role="' + role + '">Szczegóły <span class="material-icons-round" style="font-size:16px;">arrow_forward</span></button>' +
             '</div>' +
         '</div>';
     }).join('');
+
+    // Three-dots menu handlers
+    grid.querySelectorAll('.worker-detail-more').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var login = this.getAttribute('data-login');
+            var name = this.getAttribute('data-name');
+            toggleWorkerMenu(this, login, name);
+        });
+    });
+
+    // "Szczegóły" link handlers
+    grid.querySelectorAll('.worker-detail-link').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var login = this.getAttribute('data-login');
+            var name = this.getAttribute('data-name');
+            var role = this.getAttribute('data-role');
+            openWorkerDetails(login, name, role);
+        });
+    });
 
     // Pobierz dane z API
     if (API_MODE === 'api') {
         for (var i = 0; i < workers.length; i++) {
             var result = await apiGet({
                 action: 'getWorkerReport',
-                worker: workers[i],
+                worker: workers[i].name,
                 month: month,
                 year: year
             });
@@ -921,6 +1150,169 @@ async function loadWorkersView() {
                 card.style.display = name.includes(q) ? '' : 'none';
             });
         };
+    }
+}
+
+// ============================================================
+// WORKER MANAGEMENT (CRUD)
+// ============================================================
+
+// Open/Close generic modal
+function openModal(id) {
+    var modal = document.getElementById(id);
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeModal(id) {
+    var modal = document.getElementById(id);
+    if (modal) modal.style.display = 'none';
+}
+
+// Add new worker
+async function saveNewWorker() {
+    var name = document.getElementById('new-worker-name').value.trim();
+    var login = document.getElementById('new-worker-login').value.trim().toLowerCase();
+    var role = document.getElementById('new-worker-role').value;
+
+    if (!name || !login) {
+        showToast('Wypełnij imię i login', 'error');
+        return;
+    }
+
+    // Check duplicate
+    if (workersCache.some(function(w) { return w.login === login; })) {
+        showToast('Pracownik o tym loginie już istnieje', 'error');
+        return;
+    }
+
+    var result = await addWorkerAPI(name, login, role);
+    if (result.success) {
+        showToast('Dodano pracownika: ' + name, 'success');
+        closeModal('add-worker-modal');
+        // Clear form
+        document.getElementById('new-worker-name').value = '';
+        document.getElementById('new-worker-login').value = '';
+        // Refresh
+        await loadWorkersList();
+        loadWorkersView();
+    } else {
+        showToast(result.message || 'Błąd dodawania', 'error');
+    }
+}
+
+// Remove worker
+async function removeWorker(login, name) {
+    if (!confirm('Czy na pewno chcesz usunąć pracownika ' + name + '?')) return;
+
+    var result = await removeWorkerAPI(login);
+    if (result.success) {
+        showToast('Usunięto pracownika: ' + name, 'success');
+        await loadWorkersList();
+        loadWorkersView();
+    } else {
+        showToast(result.message || 'Błąd usuwania', 'error');
+    }
+}
+
+// Three-dots menu
+function toggleWorkerMenu(btn, login, name) {
+    // Close any existing menus
+    document.querySelectorAll('.worker-menu-dropdown').forEach(function(m) { m.remove(); });
+
+    var menu = document.createElement('div');
+    menu.className = 'worker-menu-dropdown';
+    menu.innerHTML =
+        '<button class="worker-menu-item" data-action="set-pin">' +
+            '<span class="material-icons-round">lock</span>' +
+            'Ustaw PIN' +
+        '</button>' +
+        '<div class="worker-menu-divider"></div>' +
+        '<button class="worker-menu-item danger" data-action="remove">' +
+            '<span class="material-icons-round">person_remove</span>' +
+            'Usuń pracownika' +
+        '</button>';
+
+    btn.closest('.worker-detail-card').appendChild(menu);
+
+    menu.querySelector('[data-action="set-pin"]').addEventListener('click', function() {
+        menu.remove();
+        openSetPinModal(login, name);
+    });
+
+    menu.querySelector('[data-action="remove"]').addEventListener('click', function() {
+        menu.remove();
+        removeWorker(login, name);
+    });
+}
+
+// Set PIN modal
+var currentPinWorkerLogin = '';
+
+function openSetPinModal(login, name) {
+    currentPinWorkerLogin = login;
+    document.getElementById('set-pin-worker-name').textContent = name;
+    clearPinBoxes('set-pin-boxes');
+    openModal('set-pin-modal');
+    // Focus first pin box
+    var firstBox = document.querySelector('#set-pin-boxes .pin-box');
+    if (firstBox) setTimeout(function() { firstBox.focus(); }, 100);
+}
+
+async function savePinForWorker() {
+    var pin = getPinValue('set-pin-boxes');
+    if (pin.length !== 4) {
+        showToast('Wpisz 4 cyfry PIN', 'error');
+        return;
+    }
+
+    var result = await setWorkerPinAPI(currentPinWorkerLogin, pin);
+    if (result.success) {
+        showToast('PIN ustawiony pomyślnie', 'success');
+        closeModal('set-pin-modal');
+    } else {
+        showToast(result.message || 'Błąd ustawiania PIN', 'error');
+    }
+}
+
+// Worker Details modal
+async function openWorkerDetails(login, name, role) {
+    // Set header
+    var initials = name.split(' ').length > 1
+        ? (name.split(' ')[0].charAt(0) + name.split(' ')[name.split(' ').length-1].charAt(0)).toUpperCase()
+        : name.substring(0, 2).toUpperCase();
+    document.getElementById('wd-avatar').textContent = initials;
+    document.getElementById('wd-name').textContent = name;
+    document.getElementById('wd-role').textContent = role || 'Pracownik';
+
+    // Reset stats
+    document.getElementById('wd-today-hours').textContent = '-';
+    document.getElementById('wd-week-hours').textContent = '-';
+    document.getElementById('wd-month-hours').textContent = '-';
+    document.getElementById('wd-sessions-body').innerHTML =
+        '<tr><td colspan="4" style="text-align:center;color:var(--text-secondary);padding:24px;">Ładowanie...</td></tr>';
+
+    openModal('worker-details-modal');
+
+    // Fetch details from API
+    var data = await getWorkerDetailsAPI(login);
+    if (data) {
+        document.getElementById('wd-today-hours').textContent = data.todayHours || '0h 0m';
+        document.getElementById('wd-week-hours').textContent = data.weekHours || '0h 0m';
+        document.getElementById('wd-month-hours').textContent = data.monthHours || '0h 0m';
+
+        var tbody = document.getElementById('wd-sessions-body');
+        if (data.sessions && data.sessions.length > 0) {
+            tbody.innerHTML = data.sessions.map(function(s) {
+                return '<tr>' +
+                    '<td>' + (s.date || '-') + '</td>' +
+                    '<td>' + (s.start || '-') + '</td>' +
+                    '<td>' + (s.end || '-') + '</td>' +
+                    '<td style="font-weight:600;">' + (s.duration || '-') + '</td>' +
+                '</tr>';
+            }).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-secondary);padding:24px;">Brak danych o sesjach</td></tr>';
+        }
     }
 }
 

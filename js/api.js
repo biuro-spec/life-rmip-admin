@@ -283,6 +283,114 @@ async function logoutWorkerAPI() {
 }
 
 // ============================================================
+// ADMIN & WORKER MANAGEMENT API
+// ============================================================
+
+/**
+ * Logowanie administratora (dyspozytor)
+ */
+async function loginAdminAPI(login, pin) {
+  if (API_MODE === 'api') {
+    const result = await apiPost({
+      action: 'loginAdmin',
+      login: login,
+      pin: pin
+    });
+    if (result) return { success: true, data: result };
+    return { success: false, message: 'Nieprawidłowy PIN' };
+  }
+  // Mock: accept any PIN
+  return { success: true, data: { login: login, name: login.charAt(0).toUpperCase() + login.slice(1) } };
+}
+
+/**
+ * Pobiera listę pracowników
+ */
+async function getWorkersListAPI() {
+  if (API_MODE === 'api') {
+    const result = await apiGet({ action: 'getWorkersList' });
+    if (result) return result;
+  }
+  // Mock fallback
+  return [
+    { name: 'Krzysztof', login: 'krzysztof', role: 'Kierownik Zespołu' },
+    { name: 'Aleks', login: 'aleks', role: 'Logistyk Terenowy' },
+    { name: 'Waldemar', login: 'waldemar', role: 'Ratownik Medyczny' },
+    { name: 'Dawid', login: 'dawid', role: 'Kierowca Ambulansu' },
+    { name: 'Piotrek', login: 'piotrek', role: 'Ratownik Medyczny' }
+  ];
+}
+
+/**
+ * Dodaje nowego pracownika
+ */
+async function addWorkerAPI(name, login, role) {
+  if (API_MODE === 'api') {
+    const result = await apiPost({
+      action: 'addWorker',
+      name: name,
+      login: login,
+      role: role
+    });
+    if (result) return { success: true };
+    return { success: false, message: 'Błąd dodawania pracownika' };
+  }
+  return { success: true };
+}
+
+/**
+ * Usuwa pracownika
+ */
+async function removeWorkerAPI(login) {
+  if (API_MODE === 'api') {
+    const result = await apiPost({
+      action: 'removeWorker',
+      login: login
+    });
+    if (result) return { success: true };
+    return { success: false, message: 'Błąd usuwania pracownika' };
+  }
+  return { success: true };
+}
+
+/**
+ * Ustawia PIN pracownika
+ */
+async function setWorkerPinAPI(login, pin) {
+  if (API_MODE === 'api') {
+    const result = await apiPost({
+      action: 'setWorkerPin',
+      login: login,
+      pin: pin
+    });
+    if (result) return { success: true };
+    return { success: false, message: 'Błąd ustawiania PIN' };
+  }
+  return { success: true };
+}
+
+/**
+ * Pobiera szczegóły pracownika (czas pracy, historia sesji)
+ */
+async function getWorkerDetailsAPI(login) {
+  if (API_MODE === 'api') {
+    const result = await apiGet({
+      action: 'getWorkerDetails',
+      worker: login
+    });
+    if (result) return result;
+  }
+  // Mock fallback
+  return {
+    name: login,
+    todayHours: '0h 0m',
+    weekHours: '0h 0m',
+    monthHours: '0h 0m',
+    sessions: []
+  };
+}
+
+// ============================================================
 // MAPOWANIE DANYCH Z API NA FORMAT FRONTEND
 // ============================================================
 
