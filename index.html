@@ -68,6 +68,10 @@
                 <span class="material-icons-round">people</span>
                 <span>Pracownicy</span>
             </a>
+            <a href="#" class="nav-item" data-view="patients">
+                <span class="material-icons-round">personal_injury</span>
+                <span>Pacjenci</span>
+            </a>
         </nav>
         <div class="sidebar-footer">
             <div class="dispatcher-info">
@@ -698,6 +702,38 @@
                     </div>
                     <div class="workers-detail-grid" id="workers-detail-grid">
                         <!-- Wypełniane przez JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== PACJENCI ==================== -->
+            <section class="view" id="view-patients">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>Baza pacjentów</h2>
+                        <div class="patients-search-wrap">
+                            <span class="material-icons-round patients-search-icon">search</span>
+                            <input type="text" id="patients-search" class="patients-search-input" placeholder="Szukaj pacjenta...">
+                        </div>
+                    </div>
+                    <div class="patients-stats" id="patients-stats"></div>
+                    <div class="table-container">
+                        <table class="data-table" id="patients-table">
+                            <thead>
+                                <tr>
+                                    <th>Pacjent</th>
+                                    <th>PESEL</th>
+                                    <th>Telefon</th>
+                                    <th>Typ</th>
+                                    <th>Zleceń</th>
+                                    <th>Ostatnie</th>
+                                    <th>Uwagi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="patients-tbody">
+                                <!-- Wypełniane przez JS -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>

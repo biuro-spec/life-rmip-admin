@@ -820,6 +820,109 @@ body {
 .toast.success .toast-icon { color: var(--success); }
 .toast.error .toast-icon { color: var(--error); }
 
+/* ==================== PACJENCI ==================== */
+.patients-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.patients-search-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--text-secondary);
+    font-size: 20px;
+    pointer-events: none;
+}
+.patients-search-input {
+    padding: 8px 12px 8px 40px;
+    border: 1px solid var(--primary-10);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--bg-subtle);
+    width: 260px;
+    transition: all 0.2s;
+}
+.patients-search-input:focus {
+    border-color: var(--primary);
+    background: var(--white);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--primary-20);
+}
+.patients-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+.patients-stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+}
+.patients-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+}
+.patients-stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.patient-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.patient-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary-10);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+.patient-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.patient-type-badge .material-icons-round {
+    font-size: 14px;
+}
+.patient-type-badge.lezacy {
+    background: #eff6ff;
+    color: #2563eb;
+}
+.patient-type-badge.siedzacy {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+.patient-phone {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+.patient-phone:hover {
+    text-decoration: underline;
+}
+.patient-notes-preview {
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: help;
+}
+
 /* ==================== RESPONSIVE ==================== */
 @media (max-width: 1024px) {
     .stats-grid { grid-template-columns: repeat(2, 1fr); }

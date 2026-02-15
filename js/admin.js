@@ -13,7 +13,8 @@ const viewTitles = {
     'orders': 'Wszystkie zlecenia',
     'calculator': 'Kalkulator cen',
     'reports': 'Rozliczenia',
-    'workers': 'Pracownicy'
+    'workers': 'Pracownicy',
+    'patients': 'Baza pacjentów'
 };
 
 function showView(viewId) {
@@ -45,6 +46,7 @@ function showView(viewId) {
         case 'dashboard': loadDashboard(); break;
         case 'orders': loadOrdersList(); break;
         case 'workers': loadWorkersView(); break;
+        case 'patients': loadPatientsView(); break;
         case 'new-order': initOrderForm(); break;
     }
 
@@ -1348,4 +1350,88 @@ function escAttr(str) {
 function escHtml(str) {
     if (!str) return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ============================================================
+// BAZA PACJENTÓW
+// ============================================================
+
+var allPatients = [];
+
+async function loadPatientsView() {
+    var tbody = document.getElementById('patients-tbody');
+    var statsEl = document.getElementById('patients-stats');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-secondary);">Ładowanie pacjentów...</td></tr>';
+
+    if (API_MODE !== 'api') {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">Tryb demo - brak danych</td></tr>';
+        return;
+    }
+
+    var result = await apiGet({ action: 'getPatients' });
+    if (!result) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--error);">Błąd ładowania</td></tr>';
+        return;
+    }
+
+    allPatients = result;
+
+    // Stats
+    var total = allPatients.length;
+    var lezacy = allPatients.filter(function(p) { return p.patientType === 'Leżący'; }).length;
+    var siedzacy = total - lezacy;
+    statsEl.innerHTML =
+        '<div class="patients-stat"><span class="patients-stat-value">' + total + '</span><span class="patients-stat-label">Wszystkich</span></div>' +
+        '<div class="patients-stat"><span class="patients-stat-value">' + lezacy + '</span><span class="patients-stat-label">Leżących</span></div>' +
+        '<div class="patients-stat"><span class="patients-stat-value">' + siedzacy + '</span><span class="patients-stat-label">Siedzących</span></div>';
+
+    renderPatientsTable(allPatients);
+
+    // Search
+    var searchInput = document.getElementById('patients-search');
+    searchInput.oninput = function() {
+        var q = this.value.toLowerCase();
+        if (!q) {
+            renderPatientsTable(allPatients);
+            return;
+        }
+        var filtered = allPatients.filter(function(p) {
+            return (p.name && p.name.toLowerCase().indexOf(q) > -1) ||
+                   (p.pesel && p.pesel.indexOf(q) > -1) ||
+                   (p.phone && p.phone.indexOf(q) > -1);
+        });
+        renderPatientsTable(filtered);
+    };
+}
+
+function renderPatientsTable(patients) {
+    var tbody = document.getElementById('patients-tbody');
+
+    if (patients.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-secondary);">Brak pacjentów</td></tr>';
+        return;
+    }
+
+    // Sortuj: najwięcej zleceń na górze
+    patients.sort(function(a, b) { return (b.orderCount || 0) - (a.orderCount || 0); });
+
+    tbody.innerHTML = patients.map(function(p) {
+        var typeBadge = p.patientType === 'Leżący'
+            ? '<span class="patient-type-badge lezacy"><span class="material-icons-round">bed</span> Leżący</span>'
+            : '<span class="patient-type-badge siedzacy"><span class="material-icons-round">accessible</span> Siedzący</span>';
+
+        var notes = p.medicalNotes
+            ? '<span class="patient-notes-preview" title="' + escAttr(p.medicalNotes) + '">' + escHtml(p.medicalNotes.substring(0, 40)) + (p.medicalNotes.length > 40 ? '...' : '') + '</span>'
+            : '<span style="color:var(--text-secondary)">-</span>';
+
+        return '<tr>' +
+            '<td><div class="patient-name-cell"><div class="patient-avatar">' + (p.name ? p.name.charAt(0) : '?') + '</div><span>' + escHtml(p.name) + '</span></div></td>' +
+            '<td>' + (p.pesel || '-') + '</td>' +
+            '<td>' + (p.phone ? '<a href="tel:' + p.phone + '" class="patient-phone">' + p.phone + '</a>' : '-') + '</td>' +
+            '<td>' + typeBadge + '</td>' +
+            '<td><strong>' + (p.orderCount || 0) + '</strong></td>' +
+            '<td>' + (p.lastOrder || '-') + '</td>' +
+            '<td>' + notes + '</td>' +
+        '</tr>';
+    }).join('');
 }
