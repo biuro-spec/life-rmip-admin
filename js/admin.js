@@ -1826,7 +1826,7 @@ async function refreshMapPositions() {
                 '<span class="material-icons-round" style="font-size:18px;color:#f59e0b;">info</span>' +
                 '<div>' +
                     '<strong>' + noGpsVehicles.length + '/' + positions.length + ' bez GPS</strong><br>' +
-                    '<small>Uzupełnij rejestrację w arkuszu KARETKI lub Cartrack GPS_ID</small>' +
+                    '<small>Pojazdy bez ostatnich jazd w Cartrack - pozycja przybliżona (baza)</small>' +
                 '</div>' +
             '</div>';
         }
@@ -1847,7 +1847,7 @@ async function refreshMapPositions() {
                 '<div class="map-vehicle-info">' +
                     (pos.worker ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">person</span> ' + escHtml(pos.worker) + '</div>' : '<div style="color:#999;">Brak przypisanego pracownika</div>') +
                     (pos.registration ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">directions_car</span> ' + escHtml(pos.registration) + '</div>' : '') +
-                    (hasGps ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:#22c55e;">gps_fixed</span> GPS aktywny</div>' : '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:#f59e0b;">gps_off</span> Brak GPS' + (!pos.gpsId ? ' (brak ID)' : '') + '</div>') +
+                    (hasGps ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:#22c55e;">gps_fixed</span> GPS aktywny' + (pos.lastUpdate ? ' <small style="color:#999;">' + pos.lastUpdate.substring(0,16) + '</small>' : '') + '</div>' : '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:#f59e0b;">gps_off</span> ' + (!pos.gpsId ? 'Brak GPS ID' : 'Brak ostatnich jazd') + '</div>') +
                     (pos.address ? '<div class="map-vehicle-address"><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">location_on</span> ' + escHtml(pos.address) + '</div>' : '') +
                     (pos.speed > 0 ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">speed</span> ' + pos.speed + ' km/h</div>' : '') +
                 '</div>' +
