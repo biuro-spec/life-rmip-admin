@@ -612,6 +612,173 @@
         </div>
     </main>
 
+    <!-- Modal edycji zlecenia -->
+    <div class="modal-overlay" id="edit-modal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><span class="material-icons-round">edit</span> Edycja zlecenia <span id="edit-order-id"></span></h3>
+                <button class="modal-close" onclick="closeEditModal()">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <h4>Dane transportu</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Data</label>
+                            <input type="date" id="edit-date">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Godzina</label>
+                            <input type="time" id="edit-time">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <select id="edit-status">
+                                <option value="Zaplanowane">Zaplanowane</option>
+                                <option value="W trasie do pacjenta">W trasie</option>
+                                <option value="Z pacjentem">Z pacjentem</option>
+                                <option value="Zakończone">Zakończone</option>
+                                <option value="Do rozliczenia">Do rozliczenia</option>
+                                <option value="Rozliczone">Rozliczone</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Pilność</label>
+                            <select id="edit-urgency">
+                                <option value="Zaplanowane">Zaplanowane</option>
+                                <option value="Pilne">Pilne</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-section">
+                    <h4>Pacjent</h4>
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label class="form-label">Imię i nazwisko</label>
+                            <input type="text" id="edit-patient-name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">PESEL</label>
+                            <input type="text" id="edit-pesel" maxlength="11">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Telefon</label>
+                            <input type="tel" id="edit-phone">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Typ pacjenta</label>
+                            <select id="edit-patient-type">
+                                <option value="Siedzący">Siedzący</option>
+                                <option value="Leżący">Leżący</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Pomoc rodziny</label>
+                            <select id="edit-family-help">
+                                <option value="Nie">Nie</option>
+                                <option value="Tak">Tak</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-section">
+                    <h4>Trasa</h4>
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label class="form-label">Skąd</label>
+                            <input type="text" id="edit-from" class="edit-address">
+                        </div>
+                        <div class="form-group flex-2">
+                            <label class="form-label">Dokąd</label>
+                            <input type="text" id="edit-to" class="edit-address">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-section">
+                    <h4>Przypisanie</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Kontrahent</label>
+                            <select id="edit-contractor">
+                                <option value="">-- Brak --</option>
+                                <option value="Szpital Racibórz">Szpital Racibórz</option>
+                                <option value="ScanMed">ScanMed</option>
+                                <option value="Kietrz">Kietrz</option>
+                                <option value="POZ Krzyżanowice">POZ Krzyżanowice</option>
+                                <option value="NFZ">NFZ</option>
+                                <option value="Prywatne">Prywatne</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Typ transportu</label>
+                            <select id="edit-transport-type">
+                                <option value="">-</option>
+                                <option value="Transport sanitarny">Sanitarny</option>
+                                <option value="Transport medyczny">Medyczny</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Karetka</label>
+                            <select id="edit-vehicle">
+                                <option value="">-- Brak --</option>
+                                <option value="1">Karetka 1</option>
+                                <option value="2">Karetka 2</option>
+                                <option value="3">Karetka 3</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Pracownik 1</label>
+                            <select id="edit-worker1">
+                                <option value="">-- Brak --</option>
+                                <option value="Krzysztof">Krzysztof</option>
+                                <option value="Aleks">Aleks</option>
+                                <option value="Waldemar">Waldemar</option>
+                                <option value="Dawid">Dawid</option>
+                                <option value="Piotrek">Piotrek</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Pracownik 2</label>
+                            <select id="edit-worker2">
+                                <option value="">-- Brak --</option>
+                                <option value="Krzysztof">Krzysztof</option>
+                                <option value="Aleks">Aleks</option>
+                                <option value="Waldemar">Waldemar</option>
+                                <option value="Dawid">Dawid</option>
+                                <option value="Piotrek">Piotrek</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-section">
+                    <h4>Uwagi</h4>
+                    <div class="form-group">
+                        <label class="form-label">Uwagi medyczne</label>
+                        <textarea id="edit-medical-notes" rows="2" placeholder="Np. pacjent wymaga tlenu, noszowe..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Uwagi ogólne</label>
+                        <textarea id="edit-notes" rows="3" placeholder="Dodatkowe informacje..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeEditModal()">Anuluj</button>
+                <button type="button" class="btn-primary-lg" id="edit-save-btn" onclick="saveOrder()">
+                    <span class="material-icons-round">save</span>
+                    Zapisz zmiany
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notification -->
     <div class="toast" id="toast">
         <span class="toast-icon material-icons-round" id="toast-icon">check_circle</span>

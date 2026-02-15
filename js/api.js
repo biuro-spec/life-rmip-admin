@@ -11,7 +11,7 @@
 
 // URL API Google Apps Script - UZUPEŁNIJ PO WDROŻENIU
 // Po opublikowaniu Web App wklej tutaj URL
-const API_URL = 'https://script.google.com/macros/s/AKfycbwCbHWHNJa-e-psTeURNKHeW5DUcV7Yah3dvxYnXE6AFHJ3U2SJyxCPgi4FOXuAWrbC/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwV78BCyi1d3Wdp3hwCU9v5tHjglcwHJi8LHmB01nIvD88Lf_WWoDqliqgZ3MQRGw3eqg/exec';
 
 // Tryb pracy: 'api' (produkcja) lub 'mock' (lokalne testy)
 // Automatycznie przełącza na 'mock' jeśli API_URL jest pusty

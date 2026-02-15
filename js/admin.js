@@ -332,9 +332,12 @@ async function loadOrdersList() {
     orders.forEach(o => {
         const s = o.Status_Zlecenia || mapStatusForDisplay(o.status);
         const kwota = o.Lacznie || '';
+        const orderId = o.ID_Zlecenia || o.id;
         const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.onclick = function() { openEditModal(orderId); };
         tr.innerHTML =
-            '<td style="font-size:11px;">' + (o.ID_Zlecenia || o.id || '-') + '</td>' +
+            '<td style="font-size:11px;">' + (orderId || '-') + '</td>' +
             '<td>' + formatDateShort(o.Data_Transportu || o.date) + '</td>' +
             '<td>' + (o.Godzina_Zaplanowana || o.time || '-') + '</td>' +
             '<td><strong>' + (o.Imie_Nazwisko || o.patientName || '-') + '</strong></td>' +
@@ -723,6 +726,153 @@ function fetchRouteFromMaps() {
         showToast(totalKm + ' km, ' + Math.floor(totalMin / 60) + 'h ' + (totalMin % 60) + 'min', 'success');
     });
 }
+
+// ============================================================
+// EDYCJA ZLECENIA (MODAL)
+// ============================================================
+
+var currentEditId = null;
+
+async function openEditModal(orderId) {
+    var modal = document.getElementById('edit-modal');
+    var saveBtn = document.getElementById('edit-save-btn');
+    document.getElementById('edit-order-id').textContent = orderId;
+    currentEditId = orderId;
+
+    // Pobierz dane zlecenia z API
+    if (API_MODE === 'api') {
+        var order = await apiGet({ action: 'getOrder', id: orderId });
+        if (!order) {
+            showToast('Nie znaleziono zlecenia', 'error');
+            return;
+        }
+        fillEditModal(order);
+    }
+
+    // Autocomplete na polach adresowych w modalu
+    attachAutocomplete(document.getElementById('edit-from'));
+    attachAutocomplete(document.getElementById('edit-to'));
+
+    modal.style.display = 'flex';
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = '<span class="material-icons-round">save</span> Zapisz zmiany';
+}
+
+function fillEditModal(o) {
+    // Data i czas
+    var dateVal = '';
+    if (o.Data_Transportu) {
+        try {
+            var d = new Date(o.Data_Transportu);
+            dateVal = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        } catch(e) { dateVal = String(o.Data_Transportu); }
+    }
+    document.getElementById('edit-date').value = dateVal;
+
+    var timeVal = '';
+    if (o.Godzina_Zaplanowana) {
+        var t = String(o.Godzina_Zaplanowana);
+        // Obsłuż format ISO z GAS (1899-12-30T...)
+        if (t.indexOf('T') > -1) {
+            var td = new Date(t);
+            timeVal = String(td.getHours()).padStart(2, '0') + ':' + String(td.getMinutes()).padStart(2, '0');
+        } else {
+            timeVal = t;
+        }
+    }
+    document.getElementById('edit-time').value = timeVal;
+
+    // Status i pilność
+    setSelectValue('edit-status', o.Status_Zlecenia || '');
+    setSelectValue('edit-urgency', o.Pilnosc || 'Zaplanowane');
+
+    // Pacjent
+    document.getElementById('edit-patient-name').value = o.Imie_Nazwisko || '';
+    document.getElementById('edit-pesel').value = o.PESEL || '';
+    document.getElementById('edit-phone').value = o.Telefon || '';
+    setSelectValue('edit-patient-type', o.Typ_Pacjenta || 'Siedzący');
+    setSelectValue('edit-family-help', o.Rodzina_Pomoc || 'Nie');
+
+    // Trasa
+    document.getElementById('edit-from').value = o.Adres_Start || '';
+    document.getElementById('edit-to').value = o.Adres_Koniec || '';
+
+    // Przypisanie
+    setSelectValue('edit-contractor', o.Kontrahent || '');
+    setSelectValue('edit-transport-type', o.Typ_Transportu || '');
+    setSelectValue('edit-vehicle', o.Karetka_Nr ? String(o.Karetka_Nr) : '');
+    setSelectValue('edit-worker1', o.Pracownik_1 || '');
+    setSelectValue('edit-worker2', o.Pracownik_2 || '');
+
+    // Uwagi
+    document.getElementById('edit-medical-notes').value = o.Uwagi_Medyczne || '';
+    document.getElementById('edit-notes').value = o.Uwagi || '';
+}
+
+function setSelectValue(selectId, value) {
+    var sel = document.getElementById(selectId);
+    if (!sel) return;
+    for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === value) {
+            sel.selectedIndex = i;
+            return;
+        }
+    }
+}
+
+function closeEditModal() {
+    document.getElementById('edit-modal').style.display = 'none';
+    currentEditId = null;
+}
+
+async function saveOrder() {
+    if (!currentEditId) return;
+
+    var saveBtn = document.getElementById('edit-save-btn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="material-icons-round">hourglass_top</span> Zapisywanie...';
+
+    var data = {
+        data_transportu: document.getElementById('edit-date').value,
+        godzina_zaplanowana: document.getElementById('edit-time').value,
+        status: document.getElementById('edit-status').value,
+        pilnosc: document.getElementById('edit-urgency').value,
+        imie_nazwisko: document.getElementById('edit-patient-name').value,
+        pesel: document.getElementById('edit-pesel').value,
+        telefon: document.getElementById('edit-phone').value,
+        typ_pacjenta: document.getElementById('edit-patient-type').value,
+        rodzina_pomoc: document.getElementById('edit-family-help').value,
+        adres_start: document.getElementById('edit-from').value,
+        adres_koniec: document.getElementById('edit-to').value,
+        kontrahent: document.getElementById('edit-contractor').value,
+        typ_transportu: document.getElementById('edit-transport-type').value,
+        karetka_nr: document.getElementById('edit-vehicle').value,
+        pracownik_1: document.getElementById('edit-worker1').value,
+        pracownik_2: document.getElementById('edit-worker2').value,
+        uwagi_medyczne: document.getElementById('edit-medical-notes').value,
+        uwagi: document.getElementById('edit-notes').value
+    };
+
+    var result = await apiPost({ action: 'updateOrder', id: currentEditId, data: data });
+
+    if (result) {
+        showToast('Zlecenie zaktualizowane', 'success');
+        closeEditModal();
+        loadOrdersList();
+        loadDashboard();
+    } else {
+        showToast('Błąd zapisu zlecenia', 'error');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<span class="material-icons-round">save</span> Zapisz zmiany';
+    }
+}
+
+// Zamknij modal kliknięciem na overlay
+document.addEventListener('click', function(e) {
+    if (e.target.id === 'edit-modal') {
+        closeEditModal();
+    }
+});
 
 // ============================================================
 // POMOCNICZE
