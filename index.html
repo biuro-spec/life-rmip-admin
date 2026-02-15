@@ -377,32 +377,79 @@
             <section class="view" id="view-calculator">
                 <div class="panel" style="max-width: 700px;">
                     <div class="panel-header">
-                        <h2>Kalkulator cen (transporty prywatne)</h2>
+                        <h2>Kalkulator cen</h2>
                     </div>
                     <div class="calculator-form">
-                        <div class="form-row">
-                            <div class="form-group flex-2">
-                                <label class="form-label">Skąd</label>
-                                <input type="text" id="calc-from" placeholder="Adres początkowy">
-                            </div>
-                            <div class="form-group flex-2">
-                                <label class="form-label">Dokąd</label>
-                                <input type="text" id="calc-to" placeholder="Adres docelowy">
+                        <!-- Baza startowa -->
+                        <div class="route-point">
+                            <div class="route-marker start">A</div>
+                            <div class="form-group" style="flex:1;">
+                                <label class="form-label">Baza (start)</label>
+                                <input type="text" id="calc-base" value="Rudzka 14, Racibórz" placeholder="Adres bazy">
                             </div>
                         </div>
-                        <button type="button" class="btn-maps" id="btn-fetch-route" onclick="fetchRouteFromMaps()" style="margin: 8px 0 16px;">
-                            <span class="material-icons-round">route</span>
-                            Pobierz km i czas z Google Maps
+
+                        <!-- Przystanki dynamiczne -->
+                        <div id="calc-stops">
+                            <div class="route-point" data-stop="1">
+                                <div class="route-marker stop">1</div>
+                                <div class="form-group" style="flex:1;">
+                                    <label class="form-label">Przystanek 1 (np. dom pacjenta)</label>
+                                    <input type="text" class="calc-stop-input" placeholder="Wpisz adres...">
+                                </div>
+                                <button type="button" class="btn-remove-stop" onclick="removeStop(this)" title="Usuń">
+                                    <span class="material-icons-round">close</span>
+                                </button>
+                            </div>
+                            <div class="route-point" data-stop="2">
+                                <div class="route-marker stop">2</div>
+                                <div class="form-group" style="flex:1;">
+                                    <label class="form-label">Przystanek 2 (np. poradnia)</label>
+                                    <input type="text" class="calc-stop-input" placeholder="Wpisz adres...">
+                                </div>
+                                <button type="button" class="btn-remove-stop" onclick="removeStop(this)" title="Usuń">
+                                    <span class="material-icons-round">close</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn-add-stop" onclick="addStop()">
+                            <span class="material-icons-round">add_location</span>
+                            Dodaj przystanek
                         </button>
-                        <div id="route-info" style="display:none; margin-bottom:12px; padding:10px 14px; background:#e8f5e9; border-radius:8px; font-size:13px; color:#2e7d32;"></div>
+
+                        <!-- Powrót na bazę -->
+                        <div class="route-point">
+                            <div class="route-marker end">
+                                <span class="material-icons-round" style="font-size:16px;">home</span>
+                            </div>
+                            <div style="flex:1; padding:10px 0;">
+                                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:14px;">
+                                    <input type="checkbox" id="calc-return" checked>
+                                    Powrót na bazę (Rudzka 14)
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Przycisk trasy -->
+                        <button type="button" class="btn-maps" id="btn-fetch-route" onclick="fetchRouteFromMaps()" style="margin: 12px 0 16px; width:100%;">
+                            <span class="material-icons-round">route</span>
+                            Oblicz trasę z Google Maps
+                        </button>
+
+                        <!-- Info o trasie -->
+                        <div id="route-info" style="display:none; margin-bottom:12px;"></div>
+                        <div id="route-legs" style="display:none; margin-bottom:16px;"></div>
+
+                        <!-- Dane do kalkulacji -->
                         <div class="form-row">
                             <div class="form-group">
-                                <label class="form-label">Kilometry</label>
+                                <label class="form-label">Kilometry (suma)</label>
                                 <input type="number" id="calc-km" placeholder="0" min="0" step="1">
                             </div>
                             <div class="form-group">
-                                <label class="form-label">Szacowany czas (h)</label>
-                                <input type="number" id="calc-hours" placeholder="0" min="0" step="0.25">
+                                <label class="form-label">Czas jazdy (h)</label>
+                                <input type="number" id="calc-hours" placeholder="0" min="0" step="0.01">
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Stawka zł/h</label>

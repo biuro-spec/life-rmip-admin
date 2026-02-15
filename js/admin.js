@@ -556,68 +556,171 @@ function initAddressAutocomplete() {
     }
 
     // Autocomplete na polach kalkulatora
-    var calcFrom = document.getElementById('calc-from');
-    var calcTo = document.getElementById('calc-to');
-
-    if (calcFrom) {
-        new google.maps.places.Autocomplete(calcFrom, options);
+    var calcBase = document.getElementById('calc-base');
+    if (calcBase) {
+        new google.maps.places.Autocomplete(calcBase, options);
     }
-    if (calcTo) {
-        new google.maps.places.Autocomplete(calcTo, options);
+
+    // Autocomplete na istniejących przystankach
+    document.querySelectorAll('.calc-stop-input').forEach(function(input) {
+        new google.maps.places.Autocomplete(input, options);
+    });
+}
+
+// Dodaj autocomplete na nowy input
+function attachAutocomplete(input) {
+    if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+        new google.maps.places.Autocomplete(input, {
+            componentRestrictions: { country: 'pl' },
+            fields: ['formatted_address', 'name']
+        });
     }
 }
 
-// Pobierz km i czas z Google Maps Distance Matrix
+// Licznik przystanków
+var stopCounter = 2;
+
+// Dodaj przystanek
+function addStop() {
+    stopCounter++;
+    var container = document.getElementById('calc-stops');
+    var div = document.createElement('div');
+    div.className = 'route-point';
+    div.setAttribute('data-stop', stopCounter);
+    div.innerHTML =
+        '<div class="route-marker stop">' + stopCounter + '</div>' +
+        '<div class="form-group" style="flex:1;">' +
+            '<label class="form-label">Przystanek ' + stopCounter + '</label>' +
+            '<input type="text" class="calc-stop-input" placeholder="Wpisz adres...">' +
+        '</div>' +
+        '<button type="button" class="btn-remove-stop" onclick="removeStop(this)" title="Usuń">' +
+            '<span class="material-icons-round">close</span>' +
+        '</button>';
+    container.appendChild(div);
+
+    // Autocomplete na nowym polu
+    attachAutocomplete(div.querySelector('.calc-stop-input'));
+}
+
+// Usuń przystanek
+function removeStop(btn) {
+    var point = btn.closest('.route-point');
+    point.remove();
+    renumberStops();
+}
+
+// Przenumeruj przystanki
+function renumberStops() {
+    var stops = document.querySelectorAll('#calc-stops .route-point');
+    stops.forEach(function(stop, i) {
+        var num = i + 1;
+        stop.querySelector('.route-marker').textContent = num;
+        stop.querySelector('.form-label').textContent = 'Przystanek ' + num;
+    });
+    stopCounter = stops.length;
+}
+
+// Pobierz trasę z Google Maps Directions (wieloprzystankowa)
 function fetchRouteFromMaps() {
-    var from = document.getElementById('calc-from').value;
-    var to = document.getElementById('calc-to').value;
+    var base = document.getElementById('calc-base').value;
+    var returnToBase = document.getElementById('calc-return').checked;
     var btn = document.getElementById('btn-fetch-route');
     var info = document.getElementById('route-info');
+    var legsDiv = document.getElementById('route-legs');
 
-    if (!from || !to) {
-        showToast('Wpisz oba adresy', 'error');
+    if (!base) {
+        showToast('Wpisz adres bazy', 'error');
+        return;
+    }
+
+    // Zbierz przystanki (pomijaj puste)
+    var stopInputs = document.querySelectorAll('.calc-stop-input');
+    var stops = [];
+    stopInputs.forEach(function(input) {
+        if (input.value.trim()) stops.push(input.value.trim());
+    });
+
+    if (stops.length === 0) {
+        showToast('Dodaj co najmniej 1 przystanek', 'error');
         return;
     }
 
     btn.disabled = true;
-    btn.innerHTML = '<span class="material-icons-round">hourglass_top</span> Pobieranie...';
+    btn.innerHTML = '<span class="material-icons-round">hourglass_top</span> Obliczanie trasy...';
     info.style.display = 'none';
+    legsDiv.style.display = 'none';
 
-    var service = new google.maps.DistanceMatrixService();
-    service.getDistanceMatrix({
-        origins: [from],
-        destinations: [to],
+    // Buduj request dla Directions API
+    var origin = base;
+    var destination = returnToBase ? base : stops[stops.length - 1];
+    var waypoints = [];
+
+    if (returnToBase) {
+        // Wszystkie przystanki jako waypoints
+        stops.forEach(function(s) {
+            waypoints.push({ location: s, stopover: true });
+        });
+    } else {
+        // Przystanki oprócz ostatniego jako waypoints
+        for (var i = 0; i < stops.length - 1; i++) {
+            waypoints.push({ location: stops[i], stopover: true });
+        }
+    }
+
+    var directionsService = new google.maps.DirectionsService();
+    directionsService.route({
+        origin: origin,
+        destination: destination,
+        waypoints: waypoints,
         travelMode: 'DRIVING',
-        unitSystem: google.maps.UnitSystem.METRIC
+        region: 'pl'
     }, function(response, status) {
         btn.disabled = false;
-        btn.innerHTML = '<span class="material-icons-round">route</span> Pobierz km i czas z Google Maps';
+        btn.innerHTML = '<span class="material-icons-round">route</span> Oblicz trasę z Google Maps';
 
         if (status !== 'OK') {
             showToast('Błąd Google Maps: ' + status, 'error');
             return;
         }
 
-        var result = response.rows[0].elements[0];
-        if (result.status !== 'OK') {
-            showToast('Nie znaleziono trasy', 'error');
-            return;
-        }
+        var route = response.routes[0];
+        var totalMeters = 0;
+        var totalSeconds = 0;
+        var legsHtml = '';
 
-        var km = Math.round(result.distance.value / 1000);
-        var durationMin = Math.round(result.duration.value / 60);
-        var durationH = Math.round((durationMin / 60) * 100) / 100;
+        route.legs.forEach(function(leg, i) {
+            totalMeters += leg.distance.value;
+            totalSeconds += leg.duration.value;
+            legsHtml +=
+                '<div class="route-leg">' +
+                    '<span class="route-leg-num">' + String.fromCharCode(65 + i) + '</span>' +
+                    '<span class="route-leg-text">' +
+                        shortenAddr(leg.start_address) + ' → ' + shortenAddr(leg.end_address) +
+                    '</span>' +
+                    '<span class="route-leg-data">' + leg.distance.text + ' | ' + leg.duration.text + '</span>' +
+                '</div>';
+        });
 
-        document.getElementById('calc-km').value = km;
-        document.getElementById('calc-hours').value = durationH;
+        var totalKm = Math.round(totalMeters / 1000);
+        var totalMin = Math.round(totalSeconds / 60);
+        var totalH = Math.round((totalMin / 60) * 100) / 100;
+
+        document.getElementById('calc-km').value = totalKm;
+        document.getElementById('calc-hours').value = totalH;
 
         info.innerHTML =
-            '<span class="material-icons-round" style="vertical-align:middle;font-size:18px;">check_circle</span> ' +
-            '<strong>' + result.distance.text + '</strong> | ' +
-            '<strong>' + result.duration.text + '</strong> (' + durationH + ' h)';
+            '<div style="padding:10px 14px; background:#e8f5e9; border-radius:8px; color:#2e7d32;">' +
+                '<span class="material-icons-round" style="vertical-align:middle;font-size:18px;">check_circle</span> ' +
+                'Trasa: <strong>' + totalKm + ' km</strong> | ' +
+                '<strong>' + Math.floor(totalMin / 60) + 'h ' + (totalMin % 60) + 'min</strong> ' +
+                '(' + route.legs.length + ' odcinków)' +
+            '</div>';
         info.style.display = 'block';
 
-        showToast(km + ' km, ' + result.duration.text, 'success');
+        legsDiv.innerHTML = legsHtml;
+        legsDiv.style.display = 'block';
+
+        showToast(totalKm + ' km, ' + Math.floor(totalMin / 60) + 'h ' + (totalMin % 60) + 'min', 'success');
     });
 }
 
