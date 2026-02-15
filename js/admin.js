@@ -1803,14 +1803,30 @@ async function refreshMapPositions() {
         var gpsActiveCount = 0;
         bounds.extend(BASE_LOCATION);
 
-        // Info banner o GPS
+        // Info banner o GPS / auth
         var noGpsVehicles = positions.filter(function(p) { return !p.lat || !p.lng; });
-        if (noGpsVehicles.length > 0) {
+        if (debugInfo && debugInfo.cartrackAuth === 'brak_username') {
+            listHtml += '<div class="map-gps-banner" style="background:#fef2f2;border-color:#fca5a5;color:#991b1b;">' +
+                '<span class="material-icons-round" style="font-size:18px;color:#ef4444;">warning</span>' +
+                '<div>' +
+                    '<strong>Cartrack: brak loginu</strong><br>' +
+                    '<small>Uruchom <code>setupCartrackCredentials()</code> w Apps Script z Twoim loginem Cartrack</small>' +
+                '</div>' +
+            '</div>';
+        } else if (debugInfo && debugInfo.cartrackAuth === 'brak_credentials') {
+            listHtml += '<div class="map-gps-banner" style="background:#fef2f2;border-color:#fca5a5;color:#991b1b;">' +
+                '<span class="material-icons-round" style="font-size:18px;color:#ef4444;">warning</span>' +
+                '<div>' +
+                    '<strong>Cartrack: brak danych logowania</strong><br>' +
+                    '<small>Skonfiguruj username i API password w Apps Script</small>' +
+                '</div>' +
+            '</div>';
+        } else if (noGpsVehicles.length > 0) {
             listHtml += '<div class="map-gps-banner">' +
                 '<span class="material-icons-round" style="font-size:18px;color:#f59e0b;">info</span>' +
                 '<div>' +
                     '<strong>' + noGpsVehicles.length + '/' + positions.length + ' bez GPS</strong><br>' +
-                    '<small>Uzupełnij GPS_Cartrack_ID lub rejestrację w arkuszu KARETKI</small>' +
+                    '<small>Uzupełnij rejestrację w arkuszu KARETKI lub Cartrack GPS_ID</small>' +
                 '</div>' +
             '</div>';
         }
