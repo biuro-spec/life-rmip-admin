@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('admin-logout').addEventListener('click', () => {
         if (confirm('Wylogować się?')) {
             session.clearSession();
-            window.location.href = '../app/index.html';
+            window.location.href = 'https://biuro-spec.github.io/life-rmip/';
         }
     });
 
