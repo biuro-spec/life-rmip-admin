@@ -14,7 +14,8 @@ const viewTitles = {
     'calculator': 'Kalkulator cen',
     'reports': 'Rozliczenia',
     'workers': 'Pracownicy',
-    'patients': 'Baza pacjentów'
+    'patients': 'Baza pacjentów',
+    'map': 'Mapa karetek'
 };
 
 function showView(viewId) {
@@ -47,6 +48,7 @@ function showView(viewId) {
         case 'orders': loadOrdersList(); break;
         case 'workers': loadWorkersView(); break;
         case 'patients': loadPatientsView(); break;
+        case 'map': loadMapView(); break;
         case 'new-order': initOrderForm(); break;
     }
 
@@ -1353,6 +1355,207 @@ function escHtml(str) {
 }
 
 // ============================================================
+// AI: OPTYMALIZACJA TRAS (dla dyspozytora)
+// ============================================================
+
+/**
+ * Optymalizuje trasę dla zleceń na wybrany dzień
+ */
+async function optimizeOrderRoute() {
+    const date = document.getElementById('filter-date').value;
+    const vehicle = document.getElementById('filter-vehicle') ? document.getElementById('filter-vehicle').value : '';
+
+    if (!date) {
+        showToast('Wybierz datę do optymalizacji', 'error');
+        return;
+    }
+
+    if (API_MODE !== 'api') {
+        showToast('Optymalizacja wymaga połączenia z API', 'error');
+        return;
+    }
+
+    showToast('Optymalizuję trasę...', 'success');
+
+    const result = await apiGet({
+        action: 'optimizeRoute',
+        date: date,
+        vehicle: vehicle
+    });
+
+    if (result) {
+        showRouteOptimizationModal(result);
+    } else {
+        showToast('Błąd optymalizacji trasy', 'error');
+    }
+}
+
+/**
+ * Wyświetla modal z wynikami optymalizacji trasy
+ */
+function showRouteOptimizationModal(data) {
+    if (!data.success) {
+        showToast(data.message || 'Brak zleceń do optymalizacji', 'error');
+        return;
+    }
+
+    // Utwórz modal dynamicznie (jeśli nie istnieje)
+    var modal = document.getElementById('route-optimization-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'route-optimization-modal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h2>Optymalizacja Trasy</h2>
+                    <button class="modal-close" onclick="closeRouteOptimizationModal()">
+                        <span class="material-icons-round">close</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="route-optimization-body">
+                    <!-- Treść dynamiczna -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeRouteOptimizationModal()">
+                        <span class="material-icons-round">close</span>
+                        Anuluj
+                    </button>
+                    <button class="btn btn-primary" onclick="applyOptimizedRoute()">
+                        <span class="material-icons-round">done</span>
+                        Zastosuj optymalizację
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    var body = document.getElementById('route-optimization-body');
+
+    // Renderuj wyniki
+    var savingsHtml = '';
+    if (data.savings && data.savings.percentage > 0) {
+        savingsHtml = `
+            <div style="padding: 12px; background: #e8f5e9; border-radius: 8px; margin-bottom: 16px; color: #2e7d32;">
+                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <span class="material-icons-round" style="margin-right: 8px;">savings</span>
+                    <strong>Oszczędności:</strong>
+                </div>
+                <div style="font-size: 14px;">
+                    <div>Dystans: <strong>-${data.savings.distance} m</strong></div>
+                    <div>Czas: <strong>-${data.savings.time} min</strong></div>
+                    <div>Efektywność: <strong>+${data.savings.percentage}%</strong></div>
+                </div>
+            </div>
+        `;
+    }
+
+    var ordersList = '';
+    if (data.optimizedOrder && data.optimizedOrder.length > 0) {
+        ordersList = data.optimizedOrder.map(function(orderId, index) {
+            return `
+                <div style="display: flex; align-items: center; padding: 10px; background: #f5f5f5; border-radius: 6px; margin-bottom: 8px;">
+                    <div style="width: 32px; height: 32px; background: #1976d2; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px; font-weight: bold;">
+                        ${index + 1}
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 14px; font-weight: 600; color: #333;">${orderId}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    body.innerHTML = `
+        <div style="margin-bottom: 16px;">
+            <div style="font-size: 14px; color: #666; margin-bottom: 12px;">
+                <strong>Algorytm:</strong> ${data.algorithm === 'nearest_neighbor' ? 'Najbliższy sąsiad' : 'Sortowanie czasowe'}
+            </div>
+            <div style="font-size: 14px; color: #666; margin-bottom: 12px;">
+                <strong>Start:</strong> ${data.startLocation || 'Baza'}
+            </div>
+            <div style="font-size: 14px; color: #666; margin-bottom: 12px;">
+                <strong>Całkowity dystans:</strong> ${data.totalDistance} km
+            </div>
+            <div style="font-size: 14px; color: #666; margin-bottom: 16px;">
+                <strong>Całkowity czas:</strong> ${data.totalDuration} min
+            </div>
+        </div>
+        ${savingsHtml}
+        <div style="margin-top: 16px;">
+            <h3 style="font-size: 14px; color: #666; margin-bottom: 12px;">Optymalna kolejność zleceń:</h3>
+            ${ordersList}
+        </div>
+    `;
+
+    // Zapisz dane w global variable do zastosowania
+    window.optimizedRouteData = data;
+
+    modal.style.display = 'flex';
+}
+
+/**
+ * Zamyka modal optymalizacji trasy
+ */
+function closeRouteOptimizationModal() {
+    var modal = document.getElementById('route-optimization-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    window.optimizedRouteData = null;
+}
+
+/**
+ * Zastosowuje zoptymalizowaną kolejność (aktualizuje godziny zaplanowane)
+ * UWAGA: Ta funkcja wymaga backendowej metody updateOrder dla każdego zlecenia
+ */
+async function applyOptimizedRoute() {
+    if (!window.optimizedRouteData || !window.optimizedRouteData.optimizedOrder) {
+        showToast('Brak danych optymalizacji', 'error');
+        return;
+    }
+
+    var optimizedOrder = window.optimizedRouteData.optimizedOrder;
+    var startTime = new Date();
+    startTime.setHours(8, 0, 0, 0); // Start o 8:00 (domyślnie)
+
+    // Aktualizuj godziny zleceń zgodnie z optymalizacją
+    var currentTime = startTime;
+    var successCount = 0;
+
+    for (var i = 0; i < optimizedOrder.length; i++) {
+        var orderId = optimizedOrder[i];
+
+        // Oblicz nową godzinę (każde zlecenie: +30 min bufora)
+        var timeStr = String(currentTime.getHours()).padStart(2, '0') + ':' + String(currentTime.getMinutes()).padStart(2, '0');
+
+        try {
+            var result = await apiPost({
+                action: 'updateOrder',
+                id: orderId,
+                data: { godzina_zaplanowana: timeStr }
+            });
+
+            if (result) {
+                successCount++;
+            }
+        } catch (err) {
+            console.error('Błąd aktualizacji zlecenia ' + orderId, err);
+        }
+
+        // Zwiększ czas o 30 min
+        currentTime = new Date(currentTime.getTime() + 30 * 60000);
+    }
+
+    closeRouteOptimizationModal();
+    showToast('Zoptymalizowano ' + successCount + ' zleceń', 'success');
+
+    // Odśwież listę zleceń
+    loadOrdersList();
+}
+
+// ============================================================
 // BAZA PACJENTÓW
 // ============================================================
 
@@ -1434,4 +1637,234 @@ function renderPatientsTable(patients) {
             '<td>' + notes + '</td>' +
         '</tr>';
     }).join('');
+}
+
+// ============================================================
+// MAPA KARETEK (Live Map)
+// ============================================================
+
+var ambulanceMap = null;
+var ambulanceMarkers = [];
+var mapRefreshInterval = null;
+var mapInfoWindow = null;
+
+/**
+ * Ładuje widok mapy karetek
+ */
+async function loadMapView() {
+    // Inicjalizuj mapę jeśli jeszcze nie istnieje
+    if (!ambulanceMap) {
+        initAmbulanceMap();
+    }
+
+    // Załaduj pozycje
+    await refreshMapPositions();
+
+    // Auto-odświeżanie
+    var autoRefresh = document.getElementById('map-auto-refresh');
+    clearInterval(mapRefreshInterval);
+    if (autoRefresh && autoRefresh.checked) {
+        mapRefreshInterval = setInterval(refreshMapPositions, 60000);
+    }
+    if (autoRefresh) {
+        autoRefresh.onchange = function() {
+            clearInterval(mapRefreshInterval);
+            if (this.checked) {
+                mapRefreshInterval = setInterval(refreshMapPositions, 60000);
+            }
+        };
+    }
+
+    // Resize map when view becomes visible
+    setTimeout(function() {
+        if (ambulanceMap) google.maps.event.trigger(ambulanceMap, 'resize');
+    }, 100);
+}
+
+/**
+ * Inicjalizuje Google Map
+ */
+function initAmbulanceMap() {
+    var mapEl = document.getElementById('ambulance-map');
+    if (!mapEl) return;
+
+    // Centrum: Racibórz (baza)
+    var baseLocation = { lat: 50.0919, lng: 18.2196 };
+
+    ambulanceMap = new google.maps.Map(mapEl, {
+        center: baseLocation,
+        zoom: 12,
+        mapTypeControl: true,
+        mapTypeControlOptions: {
+            style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+            position: google.maps.ControlPosition.TOP_RIGHT
+        },
+        streetViewControl: false,
+        fullscreenControl: true,
+        zoomControl: true,
+        styles: [
+            { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+            { featureType: 'transit', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+        ]
+    });
+
+    mapInfoWindow = new google.maps.InfoWindow();
+
+    // Marker bazy
+    new google.maps.Marker({
+        position: baseLocation,
+        map: ambulanceMap,
+        title: 'Baza - Rudzka 14, Racibórz',
+        icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: '#b51c1c',
+            fillOpacity: 1,
+            strokeColor: '#fff',
+            strokeWeight: 2
+        }
+    });
+}
+
+/**
+ * Odświeża pozycje karetek na mapie
+ */
+async function refreshMapPositions() {
+    try {
+        var result = await apiGet({ action: 'getAmbulancePositions' });
+        var positions = [];
+
+        if (result && result.data) {
+            positions = result.data;
+        } else if (Array.isArray(result)) {
+            positions = result;
+        }
+
+        // Wyczyść stare markery
+        ambulanceMarkers.forEach(function(m) { m.setMap(null); });
+        ambulanceMarkers = [];
+
+        var vehicleListEl = document.getElementById('map-vehicle-list');
+        var listHtml = '';
+        var bounds = new google.maps.LatLngBounds();
+        var hasPositions = false;
+
+        // Dodaj bazę do bounds
+        bounds.extend({ lat: 50.0919, lng: 18.2196 });
+
+        positions.forEach(function(pos) {
+            var statusColor = getAmbulanceStatusColor(pos.workerStatus || pos.status);
+            var statusLabel = pos.workerStatus || pos.status || 'Nieznany';
+
+            // Sidebar list item
+            listHtml += '<div class="map-vehicle-card" data-nr="' + pos.nr + '" onclick="focusAmbulance(' + pos.nr + ')">' +
+                '<div class="map-vehicle-header">' +
+                    '<span class="map-vehicle-nr">Karetka ' + pos.nr + '</span>' +
+                    '<span class="map-vehicle-status" style="background:' + statusColor + '20; color:' + statusColor + ';">' +
+                        '<span class="map-legend-dot" style="background:' + statusColor + ';"></span>' + statusLabel +
+                    '</span>' +
+                '</div>' +
+                '<div class="map-vehicle-info">' +
+                    (pos.worker ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">person</span> ' + escHtml(pos.worker) + '</div>' : '') +
+                    (pos.registration ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">directions_car</span> ' + escHtml(pos.registration) + '</div>' : '') +
+                    (pos.address ? '<div class="map-vehicle-address"><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">location_on</span> ' + escHtml(pos.address) + '</div>' : '') +
+                    (pos.speed > 0 ? '<div><span class="material-icons-round" style="font-size:14px;vertical-align:middle;">speed</span> ' + pos.speed + ' km/h</div>' : '') +
+                '</div>' +
+            '</div>';
+
+            // Marker na mapie (tylko jeśli mamy współrzędne)
+            if (pos.lat && pos.lng) {
+                hasPositions = true;
+                var latLng = { lat: parseFloat(pos.lat), lng: parseFloat(pos.lng) };
+                bounds.extend(latLng);
+
+                var marker = new google.maps.Marker({
+                    position: latLng,
+                    map: ambulanceMap,
+                    title: 'Karetka ' + pos.nr + (pos.worker ? ' - ' + pos.worker : ''),
+                    icon: createAmbulanceIcon(statusColor, pos.heading || 0),
+                    zIndex: pos.workerStatus === 'W trasie' ? 10 : 5
+                });
+
+                marker._vehicleNr = pos.nr;
+                marker._vehicleData = pos;
+
+                marker.addListener('click', function() {
+                    var p = this._vehicleData;
+                    var content = '<div style="font-family:Inter,sans-serif;min-width:200px;padding:4px;">' +
+                        '<div style="font-weight:700;font-size:15px;margin-bottom:8px;">Karetka ' + p.nr + '</div>' +
+                        (p.registration ? '<div style="margin-bottom:4px;color:#666;"><strong>Rejestracja:</strong> ' + p.registration + '</div>' : '') +
+                        (p.worker ? '<div style="margin-bottom:4px;"><strong>Pracownik:</strong> ' + p.worker + '</div>' : '') +
+                        '<div style="margin-bottom:4px;"><strong>Status:</strong> <span style="color:' + statusColor + ';font-weight:600;">' + statusLabel + '</span></div>' +
+                        (p.address ? '<div style="margin-bottom:4px;"><strong>Lokalizacja:</strong> ' + p.address + '</div>' : '') +
+                        (p.speed > 0 ? '<div style="margin-bottom:4px;"><strong>Prędkość:</strong> ' + p.speed + ' km/h</div>' : '') +
+                        (p.lastUpdate ? '<div style="font-size:11px;color:#999;margin-top:6px;">Aktualizacja: ' + p.lastUpdate + '</div>' : '') +
+                    '</div>';
+                    mapInfoWindow.setContent(content);
+                    mapInfoWindow.open(ambulanceMap, this);
+                });
+
+                ambulanceMarkers.push(marker);
+            }
+        });
+
+        if (vehicleListEl) {
+            vehicleListEl.innerHTML = listHtml || '<div class="map-no-data">Brak danych o karetkach</div>';
+        }
+
+        // Dopasuj widok mapy
+        if (hasPositions && ambulanceMap) {
+            ambulanceMap.fitBounds(bounds, { padding: 60 });
+            if (ambulanceMap.getZoom() > 15) ambulanceMap.setZoom(15);
+        }
+
+    } catch (error) {
+        console.error('Błąd odświeżania mapy:', error);
+        if (typeof toast !== 'undefined') toast.error('Nie udało się pobrać pozycji karetek');
+    }
+}
+
+/**
+ * Fokus na konkretną karetkę na mapie
+ */
+function focusAmbulance(nr) {
+    var marker = ambulanceMarkers.find(function(m) { return m._vehicleNr == nr; });
+    if (marker && ambulanceMap) {
+        ambulanceMap.panTo(marker.getPosition());
+        ambulanceMap.setZoom(15);
+        google.maps.event.trigger(marker, 'click');
+    }
+
+    // Podświetl kartę w sidebar
+    document.querySelectorAll('.map-vehicle-card').forEach(function(c) {
+        c.classList.toggle('active', c.dataset.nr == nr);
+    });
+}
+
+/**
+ * Tworzy ikonę karetki z kolorem statusu
+ */
+function createAmbulanceIcon(color, heading) {
+    return {
+        path: 'M17.402 0H5.643C2.526 0 0 2.526 0 5.643v11.759C0 20.519 2.526 23.045 5.643 23.045h11.759c3.117 0 5.643-2.526 5.643-5.643V5.643C23.045 2.526 20.519 0 17.402 0zM11.523 20.045l-4-5h2.5v-7h3v7h2.5l-4 5z',
+        fillColor: color,
+        fillOpacity: 1,
+        strokeColor: '#fff',
+        strokeWeight: 1.5,
+        scale: 1.3,
+        anchor: new google.maps.Point(11.5, 11.5),
+        rotation: heading || 0
+    };
+}
+
+/**
+ * Zwraca kolor statusu karetki
+ */
+function getAmbulanceStatusColor(status) {
+    if (!status) return '#6b7280';
+    var s = status.toLowerCase();
+    if (s.indexOf('wolny') > -1 || s === 'aktywna') return '#22c55e';
+    if (s.indexOf('tras') > -1) return '#f59e0b';
+    if (s.indexOf('pacjent') > -1) return '#ef4444';
+    return '#6b7280';
 }

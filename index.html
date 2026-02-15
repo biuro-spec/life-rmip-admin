@@ -72,6 +72,10 @@
                 <span class="material-icons-round">personal_injury</span>
                 <span>Pacjenci</span>
             </a>
+            <a href="#" class="nav-item" data-view="map">
+                <span class="material-icons-round">map</span>
+                <span>Mapa karetek</span>
+            </a>
         </nav>
         <div class="sidebar-footer">
             <div class="dispatcher-info">
@@ -445,6 +449,9 @@
                             <button class="btn-sm btn-primary" onclick="loadOrdersList()">
                                 <span class="material-icons-round">search</span> Szukaj
                             </button>
+                            <button class="btn-sm btn-secondary" onclick="optimizeOrderRoute()" title="Optymalizuj trasę dla wybranej daty">
+                                <span class="material-icons-round">route</span> Optymalizuj trasę
+                            </button>
                         </div>
                     </div>
                     <div class="orders-table-container">
@@ -738,6 +745,36 @@
                 </div>
             </section>
 
+            <!-- ==================== MAPA KARETEK ==================== -->
+            <section class="view" id="view-map">
+                <div class="map-controls">
+                    <div class="map-controls-left">
+                        <button class="btn-sm btn-primary" onclick="refreshMapPositions()">
+                            <span class="material-icons-round">refresh</span> Odśwież
+                        </button>
+                        <label class="map-auto-refresh">
+                            <input type="checkbox" id="map-auto-refresh" checked>
+                            <span>Auto-odświeżanie (60s)</span>
+                        </label>
+                    </div>
+                    <div class="map-legend">
+                        <span class="map-legend-item"><span class="map-legend-dot" style="background:#22c55e;"></span> Wolny</span>
+                        <span class="map-legend-item"><span class="map-legend-dot" style="background:#f59e0b;"></span> W trasie</span>
+                        <span class="map-legend-item"><span class="map-legend-dot" style="background:#ef4444;"></span> Z pacjentem</span>
+                        <span class="map-legend-item"><span class="map-legend-dot" style="background:#6b7280;"></span> Nieaktywna</span>
+                    </div>
+                </div>
+                <div class="map-wrapper">
+                    <div id="ambulance-map" class="ambulance-map"></div>
+                    <div class="map-sidebar" id="map-sidebar">
+                        <h3 class="map-sidebar-title">Karetki</h3>
+                        <div id="map-vehicle-list" class="map-vehicle-list">
+                            <!-- Wypełniane przez JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
         </div>
     </main>
 
@@ -916,6 +953,9 @@
     </div>
 
     <!-- Scripts -->
+    <!-- UWAGA BEZPIECZEŃSTWO: Klucz Google Maps API należy chronić ograniczeniami HTTP Referrer
+         w Google Cloud Console: https://console.cloud.google.com/apis/credentials
+         Ogranicz użycie do zaufanych domen (np. tylko twoja-domena.pl, script.google.com) -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA0tTZTp2bZBb2cbbSBcnxEoPXERnfx1w8&libraries=places&language=pl"></script>
     <script src="js/utils.js"></script>
     <script src="js/api.js"></script>

@@ -1263,6 +1263,183 @@ body {
 .data-table tbody tr { transition: background 0.15s; }
 .data-table tbody tr:hover { background: #e3f2fd; }
 
+/* ============================================================
+   MAPA KARETEK
+   ============================================================ */
+
+.map-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.map-controls-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.map-auto-refresh {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.map-auto-refresh input[type="checkbox"] {
+    accent-color: var(--primary);
+}
+
+.map-legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.map-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.map-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.map-wrapper {
+    display: flex;
+    gap: 16px;
+    height: calc(100vh - 200px);
+    min-height: 500px;
+}
+
+.ambulance-map {
+    flex: 1;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    min-height: 400px;
+}
+
+.map-sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.map-sidebar-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0 0 12px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.map-vehicle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.map-vehicle-card {
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.map-vehicle-card:hover {
+    border-color: var(--primary);
+    background: var(--bg-subtle);
+}
+
+.map-vehicle-card.active {
+    border-color: var(--primary);
+    background: rgba(181,28,28,0.05);
+    box-shadow: 0 0 0 1px var(--primary);
+}
+
+.map-vehicle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.map-vehicle-nr {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.map-vehicle-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.map-vehicle-info {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.map-vehicle-address {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
+}
+
+.map-no-data {
+    text-align: center;
+    padding: 40px 16px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 1024px) {
+    .map-wrapper {
+        flex-direction: column;
+        height: auto;
+    }
+    .ambulance-map {
+        height: 50vh;
+        min-height: 350px;
+    }
+    .map-sidebar {
+        width: 100%;
+        max-height: 300px;
+    }
+}
+
 @media (max-width: 768px) {
     .sidebar { transform: translateX(-100%); }
     .sidebar.open { transform: translateX(0); }
@@ -1270,4 +1447,5 @@ body {
     .menu-toggle { display: block; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
     .filters-row { flex-wrap: wrap; }
+    .map-controls { flex-direction: column; align-items: flex-start; }
 }
