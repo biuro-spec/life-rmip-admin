@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" href="assets/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link rel="stylesheet" href="css/admin.css?v=15">
+    <link rel="stylesheet" href="css/admin.css?v=16">
 </head>
 <body>
     <!-- Sidebar -->
@@ -80,6 +80,10 @@
                 <span>Mapa karetek</span>
             </a>
         </nav>
+        <button class="sidebar-new-order" id="sidebar-new-order">
+            <span class="material-icons-round">add_circle</span>
+            Nowe Zlecenie
+        </button>
         <div class="sidebar-footer">
             <div class="dispatcher-info">
                 <span class="material-icons-round">admin_panel_settings</span>
@@ -100,8 +104,19 @@
                 <span class="material-icons-round">menu</span>
             </button>
             <h1 class="page-title" id="page-title">Dashboard</h1>
+            <div class="topbar-search">
+                <span class="material-icons-round topbar-search-icon">search</span>
+                <input type="text" placeholder="Szukaj zlecenia, pacjenta..." id="topbar-search-input">
+            </div>
             <div class="topbar-right">
                 <span class="current-time" id="current-time"></span>
+                <div class="topbar-user" id="topbar-user">
+                    <div class="topbar-user-avatar" id="topbar-user-avatar">D</div>
+                    <div class="topbar-user-info">
+                        <div class="topbar-user-name" id="topbar-user-name">Dyspozytor</div>
+                        <div class="topbar-user-role">Główny dyspozytor</div>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -153,12 +168,12 @@
                 <!-- Workers Status -->
                 <div class="panel">
                     <div class="panel-header">
-                        <h2>Status pracowników</h2>
+                        <h2>Pracownicy</h2>
                         <button class="btn-icon" onclick="loadDashboard()">
                             <span class="material-icons-round">refresh</span>
                         </button>
                     </div>
-                    <div class="workers-grid" id="workers-status-grid">
+                    <div class="workers-scroll" id="workers-status-scroll">
                         <!-- Wypełniane przez JS -->
                     </div>
                 </div>
@@ -661,28 +676,32 @@
                     <div id="report-results" style="display: none;">
                         <div class="stats-grid">
                             <div class="stat-card">
-                                <div class="stat-info">
-                                    <span class="stat-value" id="report-orders">0</span>
-                                    <span class="stat-label">Zleceń</span>
+                                <div class="stat-card-header">
+                                    <div class="stat-icon"><span class="material-icons-round">receipt_long</span></div>
                                 </div>
+                                <span class="stat-label">Suma zleceń</span>
+                                <span class="stat-value" id="report-orders">0</span>
                             </div>
                             <div class="stat-card">
-                                <div class="stat-info">
-                                    <span class="stat-value" id="report-hours">0</span>
-                                    <span class="stat-label">Godzin</span>
+                                <div class="stat-card-header">
+                                    <div class="stat-icon"><span class="material-icons-round">schedule</span></div>
                                 </div>
+                                <span class="stat-label">Suma godzin</span>
+                                <span class="stat-value" id="report-hours">0</span>
                             </div>
                             <div class="stat-card">
-                                <div class="stat-info">
-                                    <span class="stat-value" id="report-km">0</span>
-                                    <span class="stat-label">Kilometrów</span>
+                                <div class="stat-card-header">
+                                    <div class="stat-icon"><span class="material-icons-round">straighten</span></div>
                                 </div>
+                                <span class="stat-label">Suma kilometrów</span>
+                                <span class="stat-value" id="report-km">0</span>
                             </div>
                             <div class="stat-card highlight">
-                                <div class="stat-info">
-                                    <span class="stat-value" id="report-total">0 zł</span>
-                                    <span class="stat-label">Suma</span>
+                                <div class="stat-card-header">
+                                    <div class="stat-icon"><span class="material-icons-round">payments</span></div>
                                 </div>
+                                <span class="stat-label">Łączny przychód</span>
+                                <span class="stat-value" id="report-total">0 zł</span>
                             </div>
                         </div>
                         <div class="orders-table-container" style="margin-top: 16px;">
@@ -693,10 +712,10 @@
                                         <th>Pacjent</th>
                                         <th>Trasa</th>
                                         <th>Czas (h)</th>
-                                        <th>Km</th>
-                                        <th>Kwota czas</th>
-                                        <th>Kwota km</th>
-                                        <th>Łącznie</th>
+                                        <th style="text-align:center;">Km</th>
+                                        <th style="text-align:right;">Kwota czas</th>
+                                        <th style="text-align:right;">Kwota km</th>
+                                        <th style="text-align:right;">Łącznie</th>
                                     </tr>
                                 </thead>
                                 <tbody id="report-table-body">
@@ -712,6 +731,12 @@
                 <div class="panel">
                     <div class="panel-header">
                         <h2>Pracownicy</h2>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div class="topbar-search" style="max-width:260px;">
+                                <span class="material-icons-round topbar-search-icon">search</span>
+                                <input placeholder="Szukaj pracownika..." id="workers-search-input">
+                            </div>
+                        </div>
                     </div>
                     <div class="workers-detail-grid" id="workers-detail-grid">
                         <!-- Wypełniane przez JS -->
@@ -787,6 +812,7 @@
     <!-- Modal edycji zlecenia -->
     <div class="modal-overlay" id="edit-modal" style="display:none;">
         <div class="modal">
+            <div class="modal-drag-handle"><span></span></div>
             <div class="modal-header">
                 <h3><span class="material-icons-round">edit</span> Edycja zlecenia <span id="edit-order-id"></span></h3>
                 <button class="modal-close" onclick="closeEditModal()">
@@ -952,6 +978,30 @@
         </div>
     </div>
 
+    <!-- Mobile Bottom Tab Bar -->
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+        <a class="mobile-tab active" data-view="dashboard" href="#">
+            <span class="material-icons-round">home</span>
+            <span class="mobile-tab-label">Start</span>
+        </a>
+        <a class="mobile-tab" data-view="new-order" href="#">
+            <span class="material-icons-round">add_circle</span>
+            <span class="mobile-tab-label">Nowe</span>
+        </a>
+        <a class="mobile-tab" data-view="orders" href="#">
+            <span class="material-icons-round">format_list_bulleted</span>
+            <span class="mobile-tab-label">Zlecenia</span>
+        </a>
+        <a class="mobile-tab" data-view="workers" href="#">
+            <span class="material-icons-round">group</span>
+            <span class="mobile-tab-label">Zespół</span>
+        </a>
+        <a class="mobile-tab" data-view="more" href="#">
+            <span class="material-icons-round">more_horiz</span>
+            <span class="mobile-tab-label">Więcej</span>
+        </a>
+    </nav>
+
     <!-- Toast Notification -->
     <div class="toast" id="toast">
         <span class="toast-icon material-icons-round" id="toast-icon">check_circle</span>
@@ -965,6 +1015,6 @@
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA0tTZTp2bZBb2cbbSBcnxEoPXERnfx1w8&libraries=places&language=pl"></script>
     <script src="js/utils.js"></script>
     <script src="js/api.js"></script>
-    <script src="js/admin.js?v=15"></script>
+    <script src="js/admin.js?v=16"></script>
 </body>
 </html>

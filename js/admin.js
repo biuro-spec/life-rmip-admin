@@ -63,6 +63,12 @@ function showView(viewId) {
     var bd = document.getElementById('sidebar-backdrop');
     if (bd) bd.classList.remove('visible');
     document.body.style.overflow = '';
+
+    // Sync mobile bottom tabs
+    document.querySelectorAll('.mobile-tab').forEach(function(tab) {
+        tab.classList.remove('active');
+        if (tab.getAttribute('data-view') === viewId) tab.classList.add('active');
+    });
 }
 
 // ============================================================
@@ -162,6 +168,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Sidebar "Nowe Zlecenie" button
+    var sidebarNewOrder = document.getElementById('sidebar-new-order');
+    if (sidebarNewOrder) {
+        sidebarNewOrder.addEventListener('click', () => {
+            showView('new-order');
+            closeSidebar();
+        });
+    }
+
+    // Mobile bottom tab navigation
+    document.querySelectorAll('.mobile-tab').forEach(function(tab) {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            var view = this.getAttribute('data-view');
+            if (view === 'more') {
+                // Open sidebar for "more" menu
+                document.getElementById('sidebar').classList.add('open');
+                var bd = document.getElementById('sidebar-backdrop');
+                if (bd) bd.classList.add('visible');
+                document.body.style.overflow = 'hidden';
+            } else {
+                showView(view);
+            }
+        });
+    });
+
+    // Topbar user info sync
+    var dispName = session.getSession() ? session.getSession().name : 'Dyspozytor';
+    var userNameEl = document.getElementById('topbar-user-name');
+    var userAvatarEl = document.getElementById('topbar-user-avatar');
+    if (userNameEl) userNameEl.textContent = dispName;
+    if (userAvatarEl) userAvatarEl.textContent = dispName.charAt(0).toUpperCase();
+
     // Filtr daty - domyślnie dzisiaj
     document.getElementById('filter-date').value = formatDateISO(new Date());
 
@@ -251,39 +290,31 @@ function renderDashboard(orders) {
 }
 
 async function renderWorkersStatus() {
-    const grid = document.getElementById('workers-status-grid');
+    const container = document.getElementById('workers-status-scroll');
     const workers = ['Krzysztof', 'Aleks', 'Waldemar', 'Dawid', 'Piotrek'];
 
-    grid.innerHTML = workers.map(name => {
-        const initial = name.charAt(0);
-        return '<div class="worker-card">' +
-            '<div class="worker-avatar offline">' + initial + '</div>' +
-            '<div class="worker-details">' +
-                '<div class="worker-name">' + name + '</div>' +
-                '<div class="worker-status-text">Offline</div>' +
+    function renderScrollItem(name, statusClass) {
+        var offlineClass = statusClass === 'offline' ? ' offline' : '';
+        return '<div class="worker-scroll-item' + offlineClass + '">' +
+            '<div class="worker-scroll-avatar">' +
+                '<div class="worker-scroll-avatar-inner' + (statusClass === 'offline' ? ' offline' : '') + '">' + name.charAt(0) + '</div>' +
+                '<div class="worker-scroll-dot ' + statusClass + '"></div>' +
             '</div>' +
+            '<span class="worker-scroll-name">' + name + '</span>' +
         '</div>';
-    }).join('');
+    }
 
-    // Jeśli API, pobierz aktualne statusy
+    container.innerHTML = workers.map(name => renderScrollItem(name, 'offline')).join('');
+
     if (API_MODE === 'api') {
         const result = await apiGet({ action: 'getWorkers' });
         if (result) {
-            grid.innerHTML = result.map(w => {
+            container.innerHTML = result.map(w => {
                 var statusClass = 'offline';
-                var statusText = 'Offline';
-                if (w.status === 'Wolny') { statusClass = 'available'; statusText = 'Wolny'; }
-                else if (w.status === 'W trasie') { statusClass = 'in-transit'; statusText = 'W trasie'; }
-                else if (w.status === 'Z pacjentem') { statusClass = 'with-patient'; statusText = 'Z pacjentem'; }
-
-                return '<div class="worker-card">' +
-                    '<div class="worker-avatar ' + statusClass + '">' + w.name.charAt(0) + '</div>' +
-                    '<div class="worker-details">' +
-                        '<div class="worker-name">' + w.name + '</div>' +
-                        '<div class="worker-status-text">' + statusText + '</div>' +
-                        (w.vehicle ? '<div class="worker-vehicle">Karetka ' + w.vehicle + '</div>' : '') +
-                    '</div>' +
-                '</div>';
+                if (w.status === 'Wolny') statusClass = 'available';
+                else if (w.status === 'W trasie') statusClass = 'in-transit';
+                else if (w.status === 'Z pacjentem') statusClass = 'with-patient';
+                return renderScrollItem(w.name, statusClass);
             }).join('');
         }
     }
@@ -748,14 +779,18 @@ function renderReport(data) {
     orders.forEach(o => {
         const tr = document.createElement('tr');
         tr.innerHTML =
-            '<td>' + formatDateShort(o.Data_Transportu) + '</td>' +
+            '<td style="font-weight:500;">' + formatDateShort(o.Data_Transportu) + '</td>' +
             '<td>' + (o.Imie_Nazwisko || '-') + '</td>' +
-            '<td style="font-size:12px;">' + (o.Adres_Start || '-') + ' → ' + (o.Adres_Koniec || '-') + '</td>' +
-            '<td>' + (o.Laczny_Czas_Dziesietny || '-') + '</td>' +
-            '<td>' + (o.Kilometry || '-') + '</td>' +
-            '<td>' + (o.Obliczenie_Czas ? o.Obliczenie_Czas + ' zł' : '-') + '</td>' +
-            '<td>' + (o.Obliczenie_Km ? o.Obliczenie_Km + ' zł' : '-') + '</td>' +
-            '<td><strong>' + (o.Lacznie ? o.Lacznie + ' zł' : '-') + '</strong></td>';
+            '<td style="font-size:12px;">' +
+                '<span style="font-weight:500;">' + (o.Adres_Start || '-') + '</span>' +
+                ' <span class="material-icons-round" style="font-size:12px;vertical-align:middle;color:var(--text-secondary);">arrow_forward</span> ' +
+                '<span style="font-weight:500;">' + (o.Adres_Koniec || '-') + '</span>' +
+            '</td>' +
+            '<td style="color:var(--text-secondary);">' + (o.Laczny_Czas_Dziesietny || '-') + '</td>' +
+            '<td style="text-align:center;font-weight:600;">' + (o.Kilometry || '-') + '</td>' +
+            '<td style="text-align:right;">' + (o.Obliczenie_Czas ? o.Obliczenie_Czas + ' zł' : '-') + '</td>' +
+            '<td style="text-align:right;">' + (o.Obliczenie_Km ? o.Obliczenie_Km + ' zł' : '-') + '</td>' +
+            '<td style="text-align:right;font-weight:700;">' + (o.Lacznie ? o.Lacznie + ' zł' : '-') + '</td>';
         tbody.appendChild(tr);
     });
 }
@@ -791,25 +826,57 @@ async function generateBillingSheet() {
 // ============================================================
 
 async function loadWorkersView() {
-    const grid = document.getElementById('workers-detail-grid');
-    const workers = ['Krzysztof', 'Aleks', 'Waldemar', 'Dawid', 'Piotrek'];
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
+    var grid = document.getElementById('workers-detail-grid');
+    var workers = ['Krzysztof', 'Aleks', 'Waldemar', 'Dawid', 'Piotrek'];
+    var roles = ['Kierownik Zespołu', 'Logistyk Terenowy', 'Ratownik Medyczny', 'Kierowca Ambulansu', 'Ratownik Medyczny'];
+    var now = new Date();
+    var month = now.getMonth() + 1;
+    var year = now.getFullYear();
 
-    grid.innerHTML = workers.map(name => {
-        return '<div class="worker-detail-card">' +
+    function getInitials(name) {
+        var parts = name.split(' ');
+        if (parts.length > 1) return (parts[0].charAt(0) + parts[parts.length-1].charAt(0)).toUpperCase();
+        return name.substring(0, 2).toUpperCase();
+    }
+
+    function statusClass(status) {
+        if (!status) return 'offline';
+        var s = status.toLowerCase();
+        if (s === 'available' || s === 'dostępny') return 'available';
+        if (s === 'in-transit' || s === 'w trasie') return 'in-transit';
+        if (s === 'on-break' || s === 'przerwa') return 'on-break';
+        return 'offline';
+    }
+
+    function statusLabel(status) {
+        var cls = statusClass(status);
+        var labels = { 'available': 'Dostępny', 'in-transit': 'Zajęty', 'on-break': 'W przerwie', 'offline': 'Niedostępny' };
+        return labels[cls] || 'Niedostępny';
+    }
+
+    grid.innerHTML = workers.map(function(name, idx) {
+        var initials = getInitials(name);
+        var role = roles[idx] || 'Pracownik';
+        return '<div class="worker-detail-card" data-worker="' + name + '">' +
             '<div class="worker-detail-header">' +
-                '<div class="worker-detail-avatar">' + name.charAt(0) + '</div>' +
-                '<div>' +
-                    '<div class="worker-detail-name">' + name + '</div>' +
-                    '<div class="worker-detail-status">Ładowanie...</div>' +
+                '<div class="worker-detail-avatar">' +
+                    initials +
+                    '<span class="status-dot offline"></span>' +
                 '</div>' +
+                '<button class="worker-detail-more"><span class="material-icons-round">more_vert</span></button>' +
+            '</div>' +
+            '<div class="worker-detail-info">' +
+                '<div class="worker-detail-name">' + name + '</div>' +
+                '<div class="worker-detail-role">' + role + '</div>' +
             '</div>' +
             '<div class="worker-detail-stats">' +
-                '<div class="worker-stat"><span class="worker-stat-label">Zleceń</span><span class="worker-stat-value">-</span></div>' +
-                '<div class="worker-stat"><span class="worker-stat-label">Godzin</span><span class="worker-stat-value">-</span></div>' +
-                '<div class="worker-stat"><span class="worker-stat-label">Km</span><span class="worker-stat-value">-</span></div>' +
+                '<div class="worker-stat"><span class="worker-stat-label">Zlecenia</span><span class="worker-stat-value">-</span></div>' +
+                '<div class="worker-stat"><span class="worker-stat-label">Godziny</span><span class="worker-stat-value">-</span></div>' +
+                '<div class="worker-stat"><span class="worker-stat-label">Kilometry</span><span class="worker-stat-value">-</span></div>' +
+            '</div>' +
+            '<div class="worker-detail-footer">' +
+                '<span class="worker-status-label offline">Ładowanie...</span>' +
+                '<button class="worker-detail-link">Szczegóły <span class="material-icons-round" style="font-size:16px;">arrow_forward</span></button>' +
             '</div>' +
         '</div>';
     }).join('');
@@ -817,7 +884,7 @@ async function loadWorkersView() {
     // Pobierz dane z API
     if (API_MODE === 'api') {
         for (var i = 0; i < workers.length; i++) {
-            const result = await apiGet({
+            var result = await apiGet({
                 action: 'getWorkerReport',
                 worker: workers[i],
                 month: month,
@@ -825,18 +892,35 @@ async function loadWorkersView() {
             });
 
             if (result) {
-                const cards = grid.querySelectorAll('.worker-detail-card');
-                const card = cards[i];
+                var cards = grid.querySelectorAll('.worker-detail-card');
+                var card = cards[i];
                 if (card) {
-                    card.querySelector('.worker-detail-status').textContent =
-                        result.totalWorkDays + ' dni w tym miesiącu';
-                    const stats = card.querySelectorAll('.worker-stat-value');
-                    stats[0].textContent = result.totalOrders;
-                    stats[1].textContent = result.totalWorkHours;
-                    stats[2].textContent = result.totalKm;
+                    var stats = card.querySelectorAll('.worker-stat-value');
+                    stats[0].textContent = result.totalOrders || 0;
+                    stats[1].textContent = (result.totalWorkHours || 0) + 'h';
+                    stats[2].textContent = result.totalKm ? (result.totalKm >= 1000 ? (result.totalKm / 1000).toFixed(1) + 'k' : result.totalKm) : '-';
+
+                    var statusText = result.totalWorkDays > 0 ? 'available' : 'offline';
+                    var dot = card.querySelector('.status-dot');
+                    dot.className = 'status-dot ' + statusClass(statusText);
+                    var label = card.querySelector('.worker-status-label');
+                    label.className = 'worker-status-label ' + statusClass(statusText);
+                    label.textContent = statusLabel(statusText);
                 }
             }
         }
+    }
+
+    // Worker search filter
+    var searchInput = document.getElementById('workers-search-input');
+    if (searchInput) {
+        searchInput.oninput = function() {
+            var q = this.value.toLowerCase();
+            grid.querySelectorAll('.worker-detail-card').forEach(function(card) {
+                var name = card.getAttribute('data-worker').toLowerCase();
+                card.style.display = name.includes(q) ? '' : 'none';
+            });
+        };
     }
 }
 
