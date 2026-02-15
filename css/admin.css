@@ -825,16 +825,44 @@ body {
     border-bottom: 1px solid #f0f0f0;
     padding-bottom: 6px;
 }
+.modal-body input[type="text"],
+.modal-body input[type="tel"],
+.modal-body input[type="date"],
+.modal-body input[type="time"],
+.modal-body input[type="number"],
+.modal-body select,
 .modal-body textarea {
     width: 100%;
-    padding: 10px 12px;
+    padding: 10px 14px;
     border: 1px solid #ddd;
-    border-radius: 8px;
+    border-radius: 10px;
     font-family: 'Inter', sans-serif;
     font-size: 14px;
-    resize: vertical;
+    background: #fafafa;
+    transition: all 0.2s;
+    box-sizing: border-box;
 }
-.modal-body textarea:focus { border-color: #1a73e8; outline: none; }
+.modal-body textarea { resize: vertical; }
+.modal-body select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+    cursor: pointer;
+}
+.modal-body input:focus,
+.modal-body select:focus,
+.modal-body textarea:focus {
+    border-color: #1a73e8;
+    background: #fff;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+.modal-body input::placeholder,
+.modal-body textarea::placeholder {
+    color: #bbb;
+}
 .modal-footer {
     display: flex;
     justify-content: flex-end;
