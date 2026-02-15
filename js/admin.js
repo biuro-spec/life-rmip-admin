@@ -467,7 +467,7 @@ function renderDashboard(orders) {
     tbody.innerHTML = '';
 
     if (orders.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#999; padding:40px;">Brak zleceń na dzisiaj</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#999; padding:40px;">Brak zleceń na dzisiaj</td></tr>';
         return;
     }
 
@@ -790,6 +790,7 @@ async function handleOrderSubmit(e) {
         telefon: document.getElementById('f-phone').value,
         typ_pacjenta: document.getElementById('f-patient-type').value,
         rodzina_pomoc: document.getElementById('f-family-help').value,
+        adres_zamieszkania: document.getElementById('f-address').value,
         adres_start: adresStart,
         adres_koniec: adresKoniec,
         karetka_nr: document.getElementById('f-vehicle').value,
@@ -1786,6 +1787,7 @@ function renderPatientSuggestions(patients, dropdownId, prefix) {
         var details = [];
         if (p.pesel) details.push('PESEL: ' + p.pesel);
         if (p.phone) details.push(p.phone);
+        if (p.address) details.push(p.address.length > 25 ? p.address.substring(0, 25) + '...' : p.address);
         if (p.orderCount > 0) details.push(p.orderCount + ' zlec.');
 
         html +=
@@ -1796,6 +1798,7 @@ function renderPatientSuggestions(patients, dropdownId, prefix) {
                 'data-type="' + escAttr(p.patientType) + '" ' +
                 'data-family="' + escAttr(p.familyHelp) + '" ' +
                 'data-medical="' + escAttr(p.medicalNotes) + '" ' +
+                'data-address="' + escAttr(p.address || '') + '" ' +
                 'data-prefix="' + prefix + '">' +
                 '<div class="patient-suggestion-icon">' +
                     '<span class="material-icons-round">person</span>' +
@@ -1836,6 +1839,19 @@ function selectPatient(el) {
     var medField = document.getElementById(medicalField);
     if (medField && el.dataset.medical) {
         medField.value = el.dataset.medical;
+    }
+
+    // Adres zamieszkania
+    var addressField = prefix === 'f-' ? 'f-address' : 'edit-address';
+    var addrEl = document.getElementById(addressField);
+    if (addrEl) addrEl.value = el.dataset.address || '';
+
+    // Auto-fill przystanek #1 adresem pacjenta (tylko nowe zlecenie, jesli pusty)
+    if (prefix === 'f-' && el.dataset.address) {
+        var firstStop = document.querySelector('#f-stops .f-stop-input');
+        if (firstStop && !firstStop.value.trim()) {
+            firstStop.value = el.dataset.address;
+        }
     }
 
     closeAllPatientSuggestions();
@@ -2075,16 +2091,16 @@ var allPatients = [];
 async function loadPatientsView() {
     var tbody = document.getElementById('patients-tbody');
     var statsEl = document.getElementById('patients-stats');
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-secondary);">Ładowanie pacjentów...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-secondary);">Ładowanie pacjentów...</td></tr>';
 
     if (API_MODE !== 'api') {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">Tryb demo - brak danych</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;">Tryb demo - brak danych</td></tr>';
         return;
     }
 
     var result = await apiGet({ action: 'getPatients' });
     if (!result) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--error);">Błąd ładowania</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--error);">Błąd ładowania</td></tr>';
         return;
     }
 
@@ -2112,7 +2128,8 @@ async function loadPatientsView() {
         var filtered = allPatients.filter(function(p) {
             return (p.name && p.name.toLowerCase().indexOf(q) > -1) ||
                    (p.pesel && p.pesel.indexOf(q) > -1) ||
-                   (p.phone && p.phone.indexOf(q) > -1);
+                   (p.phone && p.phone.indexOf(q) > -1) ||
+                   (p.address && p.address.toLowerCase().indexOf(q) > -1);
         });
         renderPatientsTable(filtered);
     };
@@ -2122,7 +2139,7 @@ function renderPatientsTable(patients) {
     var tbody = document.getElementById('patients-tbody');
 
     if (patients.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-secondary);">Brak pacjentów</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-secondary);">Brak pacjentów</td></tr>';
         return;
     }
 
@@ -2142,6 +2159,7 @@ function renderPatientsTable(patients) {
             '<td><div class="patient-name-cell"><div class="patient-avatar">' + (p.name ? p.name.charAt(0) : '?') + '</div><span>' + escHtml(p.name) + '</span></div></td>' +
             '<td>' + (p.pesel || '-') + '</td>' +
             '<td>' + (p.phone ? '<a href="tel:' + p.phone + '" class="patient-phone">' + p.phone + '</a>' : '-') + '</td>' +
+            '<td>' + (p.address ? '<span title="' + escAttr(p.address) + '">' + escHtml(p.address.length > 30 ? p.address.substring(0, 30) + '...' : p.address) + '</span>' : '-') + '</td>' +
             '<td>' + typeBadge + '</td>' +
             '<td><strong>' + (p.orderCount || 0) + '</strong></td>' +
             '<td>' + (p.lastOrder || '-') + '</td>' +
