@@ -1082,6 +1082,70 @@
         </div>
     </div>
 
+    <!-- Modal: Edycja pracownika -->
+    <div class="modal-overlay" id="edit-worker-modal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><span class="material-icons-round">edit</span> Edycja pracownika <span id="edit-worker-login" style="color:var(--text-secondary);font-size:13px;"></span></h3>
+                <button class="modal-close" onclick="closeModal('edit-worker-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <h4>Dane osobowe</h4>
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label class="form-label">Imię i nazwisko</label>
+                            <input type="text" id="ew-name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Telefon</label>
+                            <input type="tel" id="ew-phone">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label class="form-label">Adres zamieszkania</label>
+                            <input type="text" id="ew-address" placeholder="np. Opawska 12/3, 47-400 Racibórz">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label class="form-label">Nr ICE (kontakt alarmowy)</label>
+                            <input type="text" id="ew-ice" placeholder="np. Jan Kowalski +48 500 000 000">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-section">
+                    <h4>Warunki zatrudnienia</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Rodzaj umowy</label>
+                            <select id="ew-contract-type">
+                                <option value="">-- Nie ustalono --</option>
+                                <option value="Umowa o pracę">Umowa o pracę</option>
+                                <option value="Umowa zlecenie">Umowa zlecenie</option>
+                                <option value="B2B">B2B</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Stawka godzinowa (PLN)</label>
+                            <input type="number" id="ew-hourly-rate" min="0" step="0.50" placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('edit-worker-modal')">Anuluj</button>
+                <button class="btn-primary-lg" id="save-worker-btn" onclick="saveWorker()">
+                    <span class="material-icons-round">save</span>
+                    Zapisz zmiany
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Edycja pacjenta -->
     <div class="modal-overlay" id="edit-patient-modal" style="display:none;">
         <div class="modal">
@@ -1182,6 +1246,33 @@
                         <span class="wd-stat-value" id="wd-month-hours">-</span>
                     </div>
                 </div>
+                <!-- Sekcja wynagrodzenia -->
+                <div class="worker-salary-section" id="wd-salary-section" style="display:none; margin-top:20px;">
+                    <h4 style="border-left:4px solid var(--success);padding-left:12px;">Wynagrodzenie miesięczne</h4>
+                    <div class="worker-salary-grid">
+                        <div class="salary-item">
+                            <span class="salary-label">Godziny</span>
+                            <span class="salary-value" id="wd-salary-hours">-</span>
+                        </div>
+                        <div class="salary-item">
+                            <span class="salary-label">Stawka</span>
+                            <span class="salary-value" id="wd-salary-rate">-</span>
+                        </div>
+                        <div class="salary-item">
+                            <span class="salary-label">Rodzaj umowy</span>
+                            <span class="salary-value" id="wd-salary-contract" style="font-size:13px;">-</span>
+                        </div>
+                        <div class="salary-item highlight">
+                            <span class="salary-label">Brutto</span>
+                            <span class="salary-value" id="wd-salary-brutto">-</span>
+                        </div>
+                        <div class="salary-item highlight">
+                            <span class="salary-label">Netto (szacowane)</span>
+                            <span class="salary-value" id="wd-salary-netto">-</span>
+                        </div>
+                    </div>
+                </div>
+
                 <h4 style="margin-top:24px;border-left:4px solid var(--primary);padding-left:12px;">Historia sesji</h4>
                 <table class="data-table" id="wd-sessions-table">
                     <thead>

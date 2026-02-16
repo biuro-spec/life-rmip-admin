@@ -1223,6 +1223,10 @@ function toggleWorkerMenu(btn, login, name) {
     var menu = document.createElement('div');
     menu.className = 'worker-menu-dropdown';
     menu.innerHTML =
+        '<button class="worker-menu-item" data-action="edit">' +
+            '<span class="material-icons-round">edit</span>' +
+            'Edytuj dane' +
+        '</button>' +
         '<button class="worker-menu-item" data-action="set-pin">' +
             '<span class="material-icons-round">lock</span>' +
             'Ustaw PIN' +
@@ -1234,6 +1238,11 @@ function toggleWorkerMenu(btn, login, name) {
         '</button>';
 
     btn.closest('.worker-detail-card').appendChild(menu);
+
+    menu.querySelector('[data-action="edit"]').addEventListener('click', function() {
+        menu.remove();
+        openEditWorkerModal(login);
+    });
 
     menu.querySelector('[data-action="set-pin"]').addEventListener('click', function() {
         menu.remove();
@@ -1275,6 +1284,71 @@ async function savePinForWorker() {
     }
 }
 
+// Worker Edit modal
+var editingWorkerLogin = null;
+
+async function openEditWorkerModal(login) {
+    editingWorkerLogin = login;
+
+    var worker = workersCache.find(function(w) { return w.login === login; });
+    var details = await getWorkerDetailsAPI(login);
+
+    document.getElementById('edit-worker-login').textContent = login;
+    document.getElementById('ew-name').value = (details && details.name) || (worker && worker.name) || '';
+    document.getElementById('ew-phone').value = (details && details.telefon) || '';
+    document.getElementById('ew-address').value = (details && details.adres) || '';
+    document.getElementById('ew-ice').value = (details && details.nr_ice) || '';
+    setSelectValue('ew-contract-type', (details && details.rodzajUmowy) || '');
+    document.getElementById('ew-hourly-rate').value = (details && details.stawka) || '';
+
+    openModal('edit-worker-modal');
+
+    // Google Places autocomplete
+    var ewAddr = document.getElementById('ew-address');
+    if (ewAddr && !ewAddr._autocompleteInit) {
+        attachAutocomplete(ewAddr);
+        ewAddr._autocompleteInit = true;
+    }
+}
+
+async function saveWorker() {
+    if (!editingWorkerLogin) return;
+
+    var btn = document.getElementById('save-worker-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons-round spin">sync</span> Zapisywanie...';
+
+    var data = {
+        imie: document.getElementById('ew-name').value.trim(),
+        telefon: document.getElementById('ew-phone').value.trim(),
+        adres: document.getElementById('ew-address').value.trim(),
+        nr_ice: document.getElementById('ew-ice').value.trim(),
+        rodzaj_umowy: document.getElementById('ew-contract-type').value,
+        stawka_godzinowa: document.getElementById('ew-hourly-rate').value
+    };
+
+    if (!data.imie) {
+        showToast('Imię jest wymagane', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round">save</span> Zapisz zmiany';
+        return;
+    }
+
+    var result = await updateWorkerAPI(editingWorkerLogin, data);
+
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-icons-round">save</span> Zapisz zmiany';
+
+    if (result.success) {
+        showToast('Dane pracownika zapisane', 'success');
+        closeModal('edit-worker-modal');
+        await loadWorkersList();
+        loadWorkersView();
+    } else {
+        showToast(result.message || 'Błąd zapisu', 'error');
+    }
+}
+
 // Worker Details modal
 async function openWorkerDetails(login, name, role) {
     // Set header
@@ -1313,6 +1387,39 @@ async function openWorkerDetails(login, name, role) {
             }).join('');
         } else {
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-secondary);padding:24px;">Brak danych o sesjach</td></tr>';
+        }
+
+        // Wynagrodzenie miesięczne
+        var salarySection = document.getElementById('wd-salary-section');
+        if (data.stawka && data.stawka > 0 && data.rodzajUmowy) {
+            var monthMinutes = data.monthMinutes || 0;
+            var godziny = Math.round((monthMinutes / 60) * 100) / 100;
+            var stawka = data.stawka;
+            var brutto = Math.round(godziny * stawka * 100) / 100;
+            var rodzajUmowy = data.rodzajUmowy;
+
+            var netto = brutto;
+            if (rodzajUmowy === 'Umowa o pracę') {
+                var zus = brutto * 0.1371;
+                var zdrowotna = (brutto - zus) * 0.09;
+                var podatek = Math.max(0, (brutto - zus - 250) * 0.12 - 300);
+                netto = Math.round((brutto - zus - zdrowotna - podatek) * 100) / 100;
+            } else if (rodzajUmowy === 'Umowa zlecenie') {
+                var zusZl = brutto * 0.1371;
+                var zdrowotnaZl = (brutto - zusZl) * 0.09;
+                var kup = (brutto - zusZl) * 0.20;
+                var podatekZl = (brutto - zusZl - kup) * 0.12;
+                netto = Math.round((brutto - zusZl - zdrowotnaZl - podatekZl) * 100) / 100;
+            }
+
+            document.getElementById('wd-salary-hours').textContent = godziny.toFixed(2) + 'h';
+            document.getElementById('wd-salary-rate').textContent = stawka.toFixed(2) + ' zł/h';
+            document.getElementById('wd-salary-contract').textContent = rodzajUmowy;
+            document.getElementById('wd-salary-brutto').textContent = brutto.toFixed(2) + ' zł';
+            document.getElementById('wd-salary-netto').textContent = netto.toFixed(2) + ' zł';
+            salarySection.style.display = '';
+        } else {
+            salarySection.style.display = 'none';
         }
     }
 }

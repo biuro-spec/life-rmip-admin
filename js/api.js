@@ -391,6 +391,26 @@ async function getWorkerDetailsAPI(login) {
 }
 
 // ============================================================
+// PRACOWNICY - EDYCJA DANYCH
+// ============================================================
+
+/**
+ * Aktualizuje dane pracownika
+ */
+async function updateWorkerAPI(login, data) {
+  if (API_MODE === 'api') {
+    const result = await apiPost({
+      action: 'updateWorker',
+      login: login,
+      data: data
+    });
+    if (result) return { success: true };
+    return { success: false, message: 'Błąd aktualizacji pracownika' };
+  }
+  return { success: true };
+}
+
+// ============================================================
 // PACJENCI API
 // ============================================================
 

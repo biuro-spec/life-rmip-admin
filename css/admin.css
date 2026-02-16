@@ -2618,3 +2618,41 @@ body {
     font-weight: 700;
     color: var(--primary, #b51c1c);
 }
+
+/* Worker Salary Section */
+.worker-salary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.salary-item {
+    background: var(--bg-subtle, #f4f0f0);
+    border: 1px solid rgba(181,28,28,0.05);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+}
+
+.salary-item.highlight {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+
+.salary-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    color: var(--text-secondary, #876464);
+    margin-bottom: 4px;
+}
+
+.salary-value {
+    display: block;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary, #2d1a1a);
+}
