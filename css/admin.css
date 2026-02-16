@@ -661,6 +661,32 @@ body {
     flex-direction: column;
 }
 
+.form-group select,
+.form-group input[type="text"],
+.form-group input[type="tel"],
+.form-group input[type="date"],
+.form-group input[type="time"],
+.form-group input[type="number"],
+.form-group textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--primary-10);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.2s;
+    background: var(--bg-subtle);
+}
+
+.form-group select:focus,
+.form-group input:focus,
+.form-group textarea:focus {
+    border-color: var(--primary);
+    outline: none;
+    background: var(--white);
+    box-shadow: 0 0 0 2px var(--primary-20);
+}
+
 .form-group.flex-2 { flex: 2; }
 
 .form-label {
