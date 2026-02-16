@@ -450,11 +450,16 @@ function initAdminPanel() {
 async function loadDashboard() {
     const today = formatDateISO(new Date());
 
-    // Pobierz zlecenia na dziś
+    // Batch: pobierz zlecenia + pracowników + kalendarz w 1 żądaniu
     if (API_MODE === 'api') {
-        const result = await apiGet({ action: 'getOrders', date: today });
+        var mm = String(calendarMonth + 1).padStart(2, '0');
+        const result = await apiGet({
+            action: 'getDashboard',
+            month: mm,
+            year: String(calendarYear)
+        });
         if (result) {
-            renderDashboard(result);
+            renderDashboard(result.todayOrders, result.workers, result.calendarCounts);
             return;
         }
     }
@@ -463,7 +468,7 @@ async function loadDashboard() {
     renderDashboard(mockOrders.filter(o => o.date === today));
 }
 
-function renderDashboard(orders) {
+function renderDashboard(orders, workersData, calendarCountsData) {
     // Statystyki
     document.getElementById('stat-today-total').textContent = orders.length;
     document.getElementById('stat-in-progress').textContent =
@@ -488,28 +493,38 @@ function renderDashboard(orders) {
 
     if (orders.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#999; padding:40px;">Brak zleceń na dzisiaj</td></tr>';
-        return;
+    } else {
+        orders.forEach(o => {
+            const status = o.Status_Zlecenia || mapStatusForDisplay(o.status);
+            const tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td>' + (o.Godzina_Zaplanowana || o.time || '-') + '</td>' +
+                '<td><strong>' + (o.Imie_Nazwisko || o.patientName || '-') + '</strong></td>' +
+                '<td>' + shortenAddr(o.Adres_Start || o.from || '') + ' → ' + shortenAddr(o.Adres_Koniec || o.to || '') + '</td>' +
+                '<td>' + (o.Kontrahent || o.contractor || '-') + '</td>' +
+                '<td>' + (o.Pracownik_1 || o.assignedWorker || '-') + '</td>' +
+                '<td>' + (o.Karetka_Nr || o.vehicle || '-') + '</td>' +
+                '<td>' + statusBadge(status) + '</td>';
+            tbody.appendChild(tr);
+        });
     }
 
-    orders.forEach(o => {
-        const status = o.Status_Zlecenia || mapStatusForDisplay(o.status);
-        const tr = document.createElement('tr');
-        tr.innerHTML =
-            '<td>' + (o.Godzina_Zaplanowana || o.time || '-') + '</td>' +
-            '<td><strong>' + (o.Imie_Nazwisko || o.patientName || '-') + '</strong></td>' +
-            '<td>' + shortenAddr(o.Adres_Start || o.from || '') + ' → ' + shortenAddr(o.Adres_Koniec || o.to || '') + '</td>' +
-            '<td>' + (o.Kontrahent || o.contractor || '-') + '</td>' +
-            '<td>' + (o.Pracownik_1 || o.assignedWorker || '-') + '</td>' +
-            '<td>' + (o.Karetka_Nr || o.vehicle || '-') + '</td>' +
-            '<td>' + statusBadge(status) + '</td>';
-        tbody.appendChild(tr);
-    });
+    // Pracownicy - użyj danych z batcha jeśli dostępne
+    if (workersData) {
+        renderWorkersFromData(workersData);
+    } else {
+        renderWorkersStatus();
+    }
 
-    // Pracownicy
-    renderWorkersStatus();
-
-    // Kalendarz miesięczny
-    loadCalendar();
+    // Kalendarz - użyj danych z batcha jeśli dostępne
+    if (calendarCountsData) {
+        calendarOrderCounts = calendarCountsData;
+        var monthNames = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+        document.getElementById('cal-month-title').textContent = monthNames[calendarMonth] + ' ' + calendarYear;
+        renderCalendar();
+    } else {
+        loadCalendar();
+    }
 }
 
 async function renderWorkersStatus() {
@@ -543,6 +558,32 @@ async function renderWorkersStatus() {
     }
 }
 
+/**
+ * Renderuje statusy pracowników z gotowych danych (bez dodatkowego API call)
+ */
+function renderWorkersFromData(workersData) {
+    const container = document.getElementById('workers-status-scroll');
+
+    function renderScrollItem(name, statusClass) {
+        var offlineClass = statusClass === 'offline' ? ' offline' : '';
+        return '<div class="worker-scroll-item' + offlineClass + '">' +
+            '<div class="worker-scroll-avatar">' +
+                '<div class="worker-scroll-avatar-inner' + (statusClass === 'offline' ? ' offline' : '') + '">' + name.charAt(0) + '</div>' +
+                '<div class="worker-scroll-dot ' + statusClass + '"></div>' +
+            '</div>' +
+            '<span class="worker-scroll-name">' + name + '</span>' +
+        '</div>';
+    }
+
+    container.innerHTML = workersData.map(w => {
+        var statusClass = 'offline';
+        if (w.status === 'Wolny') statusClass = 'available';
+        else if (w.status === 'W trasie') statusClass = 'in-transit';
+        else if (w.status === 'Z pacjentem') statusClass = 'with-patient';
+        return renderScrollItem(w.name, statusClass);
+    }).join('');
+}
+
 // ============================================================
 // MINI KALENDARZ MIESIĘCZNY
 // ============================================================
@@ -568,18 +609,13 @@ async function loadCalendar() {
     var monthNames = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
     document.getElementById('cal-month-title').textContent = monthNames[calendarMonth] + ' ' + calendarYear;
 
-    // Pobierz zlecenia na cały miesiąc
+    // Lekki endpoint - zwraca tylko { 'YYYY-MM-DD': count }
     calendarOrderCounts = {};
     if (API_MODE === 'api') {
         var mm = String(calendarMonth + 1).padStart(2, '0');
-        var result = await apiGet({ action: 'getOrders', month: mm, year: String(calendarYear) });
-        if (result && Array.isArray(result)) {
-            result.forEach(function(o) {
-                var d = o.Data_Transportu || o.date || '';
-                if (d) {
-                    calendarOrderCounts[d] = (calendarOrderCounts[d] || 0) + 1;
-                }
-            });
+        var result = await apiGet({ action: 'getOrderCounts', month: mm, year: String(calendarYear) });
+        if (result) {
+            calendarOrderCounts = result;
         }
     }
 
