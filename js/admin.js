@@ -1214,17 +1214,12 @@ async function loadWorkersView() {
         return name.substring(0, 2).toUpperCase();
     }
 
-    function statusClass(status) {
-        if (!status) return 'offline';
-        var s = status.toLowerCase();
-        if (s === 'available' || s === 'dostępny' || s === 'wolny') return 'available';
-        if (s === 'in-transit' || s === 'w trasie') return 'in-transit';
-        if (s === 'on-break' || s === 'przerwa') return 'on-break';
-        return 'offline';
+    function statusClass(status, vehicle) {
+        return workerStatusClass(status, vehicle);
     }
 
-    function statusLabel(status) {
-        var cls = statusClass(status);
+    function statusLabel(status, vehicle) {
+        var cls = statusClass(status, vehicle);
         var labels = { 'available': 'Dostępny', 'in-transit': 'Zajęty', 'on-break': 'W przerwie', 'offline': 'Nie w pracy' };
         return labels[cls] || 'Nie w pracy';
     }
@@ -1239,7 +1234,7 @@ async function loadWorkersView() {
         var login = w.login || name.toLowerCase();
         var role = w.role || 'Pracownik';
         var initials = getInitials(name);
-        var wStatus = statusClass(w.status || '');
+        var wStatus = statusClass(w.status || '', w.karetka || '');
         var isOffline = wStatus === 'offline';
         var cardClass = 'worker-detail-card' + (isOffline ? ' worker-offline' : '');
         return '<div class="' + cardClass + '" data-worker="' + name + '" data-login="' + login + '">' +
@@ -1261,7 +1256,7 @@ async function loadWorkersView() {
                 '<div class="worker-stat"><span class="worker-stat-label">Kilometry</span><span class="worker-stat-value">-</span></div>' +
             '</div>' +
             '<div class="worker-detail-footer">' +
-                '<span class="worker-status-label ' + wStatus + '">' + statusLabel(w.status || '') + '</span>' +
+                '<span class="worker-status-label ' + wStatus + '">' + statusLabel(w.status || '', w.karetka || '') + '</span>' +
                 '<button class="worker-detail-link" data-login="' + login + '" data-name="' + name + '" data-role="' + role + '">Szczegóły <span class="material-icons-round" style="font-size:16px;">arrow_forward</span></button>' +
             '</div>' +
         '</div>';
@@ -1535,11 +1530,10 @@ async function openWorkerDetails(login, name, role) {
     // Status badge
     var worker = workersCache.find(function(w) { return w.login === login; });
     var wStatus = worker && worker.status ? worker.status : '';
+    var wVehicle = worker && worker.karetka ? worker.karetka : '';
     var statusBadge = document.getElementById('wd-status-badge');
-    if (wStatus) {
-        var cls = 'available';
-        if (wStatus === 'W trasie') cls = 'in-transit';
-        else if (wStatus === 'Z pacjentem') cls = 'in-transit';
+    var cls = workerStatusClass(wStatus, wVehicle);
+    if (cls !== 'offline') {
         statusBadge.className = 'worker-status-label ' + cls;
         statusBadge.textContent = wStatus;
     } else {
