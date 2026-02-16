@@ -459,7 +459,7 @@ async function loadDashboard() {
             year: String(calendarYear)
         });
         if (result) {
-            renderDashboard(result.todayOrders, result.workers, result.calendarCounts);
+            renderDashboard(result.todayOrders, result.workers, result.calendarCounts, result.availabilityCounts);
             return;
         }
     }
@@ -468,7 +468,9 @@ async function loadDashboard() {
     renderDashboard(mockOrders.filter(o => o.date === today));
 }
 
-function renderDashboard(orders, workersData, calendarCountsData) {
+var calendarAvailabilityCounts = {}; // { 'YYYY-MM-DD': count }
+
+function renderDashboard(orders, workersData, calendarCountsData, availabilityCountsData) {
     // Statystyki
     document.getElementById('stat-today-total').textContent = orders.length;
     document.getElementById('stat-in-progress').textContent =
@@ -514,6 +516,11 @@ function renderDashboard(orders, workersData, calendarCountsData) {
         renderWorkersFromData(workersData);
     } else {
         renderWorkersStatus();
+    }
+
+    // Dostępność pracowników
+    if (availabilityCountsData) {
+        calendarAvailabilityCounts = availabilityCountsData;
     }
 
     // Kalendarz - użyj danych z batcha jeśli dostępne
@@ -667,11 +674,17 @@ function renderCalendar() {
 
         html += '<div class="' + classes + '" onclick="calendarDayClick(\'' + dateStr + '\')">';
         html += '<span class="cal-day-num">' + d + '</span>';
+        var avail = calendarAvailabilityCounts[dateStr] || 0;
+        html += '<div class="cal-day-badges">';
         if (count > 0) {
             html += '<span class="cal-day-count">' + count + '</span>';
         } else {
             html += '<span class="cal-day-count none">0</span>';
         }
+        if (avail > 0) {
+            html += '<span class="cal-day-avail">' + avail + '</span>';
+        }
+        html += '</div>';
         html += '</div>';
     }
 
@@ -685,11 +698,70 @@ function renderCalendar() {
     container.innerHTML = html;
 }
 
-function calendarDayClick(dateStr) {
-    // Przejdź do widoku zleceń przefiltrowanych na tę datę
-    var dateInput = document.getElementById('filter-date');
-    if (dateInput) dateInput.value = dateStr;
-    showView('orders');
+async function calendarDayClick(dateStr) {
+    // Pokaż modal z informacjami o dniu
+    var avail = calendarAvailabilityCounts[dateStr] || 0;
+    var orders = calendarOrderCounts[dateStr] || 0;
+
+    // Pobierz listę dostępnych pracowników
+    var workersList = '';
+    if (avail > 0 && API_MODE === 'api') {
+        var workers = await apiGet({ action: 'getAvailableWorkersForDate', date: dateStr });
+        if (workers && workers.length) {
+            workersList = workers.map(function(w) {
+                return '<div class="day-worker-item">' +
+                    '<span class="material-icons-round day-worker-icon">person</span>' +
+                    '<span class="day-worker-name">' + w.name + '</span>' +
+                    (w.uwagi ? '<span class="day-worker-note">' + w.uwagi + '</span>' : '') +
+                '</div>';
+            }).join('');
+        }
+    }
+
+    // Pokaż popup
+    var dateParts = dateStr.split('-');
+    var dayNames = ['niedziela','poniedzialek','wtorek','sroda','czwartek','piatek','sobota'];
+    var dayDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+    var dayName = dayNames[dayDate.getDay()];
+
+    var popup = document.createElement('div');
+    popup.className = 'day-popup-overlay';
+    popup.innerHTML =
+        '<div class="day-popup">' +
+            '<div class="day-popup-header">' +
+                '<h3>' + dateParts[2] + '.' + dateParts[1] + '.' + dateParts[0] + ' (' + dayName + ')</h3>' +
+                '<button class="day-popup-close" onclick="this.closest(\'.day-popup-overlay\').remove()">' +
+                    '<span class="material-icons-round">close</span>' +
+                '</button>' +
+            '</div>' +
+            '<div class="day-popup-stats">' +
+                '<div class="day-popup-stat">' +
+                    '<span class="material-icons-round" style="color:var(--info)">assignment</span>' +
+                    '<span>' + orders + ' zlecen</span>' +
+                '</div>' +
+                '<div class="day-popup-stat">' +
+                    '<span class="material-icons-round" style="color:var(--success)">people</span>' +
+                    '<span>' + avail + ' dostepnych</span>' +
+                '</div>' +
+            '</div>' +
+            (workersList ?
+                '<div class="day-popup-workers">' +
+                    '<h4>Dostepni pracownicy:</h4>' +
+                    workersList +
+                '</div>'
+            : (avail === 0 ? '<p class="day-popup-empty">Brak zadeklarowanej dostepnosci</p>' : '')) +
+            '<div class="day-popup-actions">' +
+                '<button class="btn btn-primary btn-full" onclick="document.getElementById(\'filter-date\').value=\'' + dateStr + '\';showView(\'orders\');this.closest(\'.day-popup-overlay\').remove();">' +
+                    '<span class="material-icons-round">list_alt</span> Zobacz zlecenia' +
+                '</button>' +
+            '</div>' +
+        '</div>';
+
+    popup.addEventListener('click', function(e) {
+        if (e.target === popup) popup.remove();
+    });
+
+    document.body.appendChild(popup);
 }
 
 // ============================================================
