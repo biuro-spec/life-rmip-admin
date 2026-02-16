@@ -1300,6 +1300,8 @@ async function openEditWorkerModal(login) {
     document.getElementById('ew-ice').value = (details && details.nr_ice) || '';
     setSelectValue('ew-contract-type', (details && details.rodzajUmowy) || '');
     document.getElementById('ew-hourly-rate').value = (details && details.stawka) || '';
+    document.getElementById('ew-hire-date').value = (details && details.dataZatrudnienia) || '';
+    document.getElementById('ew-bank-account').value = (details && details.nrKonta) || '';
 
     openModal('edit-worker-modal');
 
@@ -1324,7 +1326,9 @@ async function saveWorker() {
         adres: document.getElementById('ew-address').value.trim(),
         nr_ice: document.getElementById('ew-ice').value.trim(),
         rodzaj_umowy: document.getElementById('ew-contract-type').value,
-        stawka_godzinowa: document.getElementById('ew-hourly-rate').value
+        stawka_godzinowa: document.getElementById('ew-hourly-rate').value,
+        data_zatrudnienia: document.getElementById('ew-hire-date').value,
+        nr_konta: document.getElementById('ew-bank-account').value.trim()
     };
 
     if (!data.imie) {
