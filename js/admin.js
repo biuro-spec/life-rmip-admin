@@ -548,10 +548,7 @@ async function renderWorkersStatus() {
         const result = await apiGet({ action: 'getWorkers' });
         if (result) {
             container.innerHTML = result.map(w => {
-                var statusClass = 'offline';
-                if (w.status === 'Wolny') statusClass = 'available';
-                else if (w.status === 'W trasie') statusClass = 'in-transit';
-                else if (w.status === 'Z pacjentem') statusClass = 'with-patient';
+                var statusClass = workerStatusClass(w.status, w.vehicle);
                 return renderScrollItem(w.name, statusClass);
             }).join('');
         }
@@ -576,12 +573,21 @@ function renderWorkersFromData(workersData) {
     }
 
     container.innerHTML = workersData.map(w => {
-        var statusClass = 'offline';
-        if (w.status === 'Wolny') statusClass = 'available';
-        else if (w.status === 'W trasie') statusClass = 'in-transit';
-        else if (w.status === 'Z pacjentem') statusClass = 'with-patient';
+        var statusClass = workerStatusClass(w.status, w.vehicle);
         return renderScrollItem(w.name, statusClass);
     }).join('');
+}
+
+/**
+ * Określa klasę CSS statusu pracownika
+ * Pracownik bez przypisanej karetki = offline (niezalogowany)
+ */
+function workerStatusClass(status, vehicle) {
+    if (!vehicle) return 'offline';
+    if (status === 'Wolny') return 'available';
+    if (status === 'W trasie') return 'in-transit';
+    if (status === 'Z pacjentem') return 'with-patient';
+    return 'offline';
 }
 
 // ============================================================
