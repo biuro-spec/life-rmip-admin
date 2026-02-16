@@ -893,10 +893,50 @@ body {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    transition: box-shadow 0.2s;
+    transition: box-shadow 0.2s, opacity 0.2s;
 }
 .worker-detail-card:hover {
     box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+}
+
+/* Karta niezalogowanego pracownika */
+.worker-detail-card.worker-offline {
+    opacity: 0.55;
+    border-color: #e5e7eb;
+    background: #f9fafb;
+}
+.worker-detail-card.worker-offline:hover {
+    opacity: 0.8;
+}
+.worker-detail-card.worker-offline .worker-detail-avatar {
+    color: var(--text-secondary);
+    background: var(--bg-subtle);
+}
+.worker-detail-card.worker-offline .worker-detail-name {
+    color: var(--text-secondary);
+}
+.worker-detail-card.worker-offline .worker-detail-stats {
+    opacity: 0.6;
+}
+
+/* Banner "Nie w pracy" */
+.worker-offline-banner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #ef4444;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    padding: 4px 10px;
+    margin: -8px -8px 0 -8px;
+}
+.worker-offline-banner .material-icons-round {
+    font-size: 14px;
 }
 
 .worker-detail-header {

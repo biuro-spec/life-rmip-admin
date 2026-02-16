@@ -102,10 +102,30 @@ function populateWorkerSelects() {
         var firstOpt = sel.options[0];
         sel.innerHTML = '';
         sel.appendChild(firstOpt);
-        workersCache.forEach(function(w) {
+
+        // Zalogowani na górze, niezalogowani na dole
+        var logged = workersCache.filter(function(w) { return w.status && w.status !== ''; });
+        var offline = workersCache.filter(function(w) { return !w.status || w.status === ''; });
+
+        logged.forEach(function(w) {
             var opt = document.createElement('option');
             opt.value = w.name;
-            opt.textContent = w.name;
+            opt.textContent = w.name + ' (' + w.status + ')';
+            sel.appendChild(opt);
+        });
+
+        if (offline.length && logged.length) {
+            var separator = document.createElement('option');
+            separator.disabled = true;
+            separator.textContent = '── Niezalogowani ──';
+            sel.appendChild(separator);
+        }
+
+        offline.forEach(function(w) {
+            var opt = document.createElement('option');
+            opt.value = w.name;
+            opt.textContent = w.name + ' (nie w pracy)';
+            opt.style.color = '#9ca3af';
             sel.appendChild(opt);
         });
     });
@@ -1053,8 +1073,8 @@ async function loadWorkersView() {
 
     function statusLabel(status) {
         var cls = statusClass(status);
-        var labels = { 'available': 'Dostępny', 'in-transit': 'Zajęty', 'on-break': 'W przerwie', 'offline': 'Niedostępny' };
-        return labels[cls] || 'Niedostępny';
+        var labels = { 'available': 'Dostępny', 'in-transit': 'Zajęty', 'on-break': 'W przerwie', 'offline': 'Nie w pracy' };
+        return labels[cls] || 'Nie w pracy';
     }
 
     if (!workers.length) {
@@ -1067,11 +1087,15 @@ async function loadWorkersView() {
         var login = w.login || name.toLowerCase();
         var role = w.role || 'Pracownik';
         var initials = getInitials(name);
-        return '<div class="worker-detail-card" data-worker="' + name + '" data-login="' + login + '">' +
+        var wStatus = statusClass(w.status || '');
+        var isOffline = wStatus === 'offline';
+        var cardClass = 'worker-detail-card' + (isOffline ? ' worker-offline' : '');
+        return '<div class="' + cardClass + '" data-worker="' + name + '" data-login="' + login + '">' +
+            (isOffline ? '<div class="worker-offline-banner"><span class="material-icons-round">power_off</span> Nie w pracy</div>' : '') +
             '<div class="worker-detail-header">' +
                 '<div class="worker-detail-avatar">' +
                     initials +
-                    '<span class="status-dot offline"></span>' +
+                    '<span class="status-dot ' + wStatus + '"></span>' +
                 '</div>' +
                 '<button class="worker-detail-more" data-login="' + login + '" data-name="' + name + '"><span class="material-icons-round">more_vert</span></button>' +
             '</div>' +
@@ -1085,7 +1109,7 @@ async function loadWorkersView() {
                 '<div class="worker-stat"><span class="worker-stat-label">Kilometry</span><span class="worker-stat-value">-</span></div>' +
             '</div>' +
             '<div class="worker-detail-footer">' +
-                '<span class="worker-status-label offline">Ładowanie...</span>' +
+                '<span class="worker-status-label ' + wStatus + '">' + statusLabel(w.status || '') + '</span>' +
                 '<button class="worker-detail-link" data-login="' + login + '" data-name="' + name + '" data-role="' + role + '">Szczegóły <span class="material-icons-round" style="font-size:16px;">arrow_forward</span></button>' +
             '</div>' +
         '</div>';
@@ -1129,13 +1153,6 @@ async function loadWorkersView() {
                     stats[0].textContent = result.totalOrders || 0;
                     stats[1].textContent = (result.totalWorkHours || 0) + 'h';
                     stats[2].textContent = result.totalKm ? (result.totalKm >= 1000 ? (result.totalKm / 1000).toFixed(1) + 'k' : result.totalKm) : '-';
-
-                    var statusText = result.totalWorkDays > 0 ? 'available' : 'offline';
-                    var dot = card.querySelector('.status-dot');
-                    dot.className = 'status-dot ' + statusClass(statusText);
-                    var label = card.querySelector('.worker-status-label');
-                    label.className = 'worker-status-label ' + statusClass(statusText);
-                    label.textContent = statusLabel(statusText);
                 }
             }
         }
@@ -1362,6 +1379,21 @@ async function openWorkerDetails(login, name, role) {
     document.getElementById('wd-avatar').textContent = initials;
     document.getElementById('wd-name').textContent = name;
     document.getElementById('wd-role').textContent = role || 'Pracownik';
+
+    // Status badge
+    var worker = workersCache.find(function(w) { return w.login === login; });
+    var wStatus = worker && worker.status ? worker.status : '';
+    var statusBadge = document.getElementById('wd-status-badge');
+    if (wStatus) {
+        var cls = 'available';
+        if (wStatus === 'W trasie') cls = 'in-transit';
+        else if (wStatus === 'Z pacjentem') cls = 'in-transit';
+        statusBadge.className = 'worker-status-label ' + cls;
+        statusBadge.textContent = wStatus;
+    } else {
+        statusBadge.className = 'worker-status-label offline';
+        statusBadge.textContent = 'Nie w pracy';
+    }
 
     // Reset stats
     document.getElementById('wd-today-hours').textContent = '-';
