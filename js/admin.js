@@ -529,7 +529,6 @@ function renderDashboard(orders, workersData, calendarCountsData) {
 
 async function renderWorkersStatus() {
     const container = document.getElementById('workers-status-scroll');
-    const workers = workersCache.length ? workersCache.map(function(w) { return w.name; }) : ['Krzysztof', 'Aleks', 'Waldemar', 'Dawid', 'Piotrek'];
 
     function renderScrollItem(name, statusClass) {
         var offlineClass = statusClass === 'offline' ? ' offline' : '';
@@ -542,7 +541,10 @@ async function renderWorkersStatus() {
         '</div>';
     }
 
-    container.innerHTML = workers.map(name => renderScrollItem(name, 'offline')).join('');
+    // Pokaż z cache jako offline (placeholder)
+    if (workersCache.length) {
+        container.innerHTML = workersCache.map(w => renderScrollItem(w.name, 'offline')).join('');
+    }
 
     if (API_MODE === 'api') {
         const result = await apiGet({ action: 'getWorkers' });
