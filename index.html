@@ -59,7 +59,7 @@
         <nav class="sidebar-nav">
             <a href="#" class="nav-item active" data-view="dashboard">
                 <span class="material-icons-round">dashboard</span>
-                <span>Dashboard</span>
+                <span>Panel główny</span>
             </a>
             <a href="#" class="nav-item nav-parent" id="nav-new-order-toggle">
                 <span class="material-icons-round">add_circle</span>
@@ -140,7 +140,7 @@
             <button class="menu-toggle" id="menu-toggle">
                 <span class="material-icons-round">menu</span>
             </button>
-            <h1 class="page-title" id="page-title">Dashboard</h1>
+            <h1 class="page-title" id="page-title">Panel główny</h1>
             <div class="topbar-search">
                 <span class="material-icons-round topbar-search-icon">search</span>
                 <input type="text" placeholder="Szukaj zlecenia, pacjenta..." id="topbar-search-input">
@@ -199,6 +199,27 @@
                         </div>
                         <span class="stat-label">Zaplanowane</span>
                         <span class="stat-value" id="stat-scheduled">0</span>
+                    </div>
+                </div>
+
+                <!-- Kalendarz miesięczny -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 id="cal-month-title">Luty 2026</h2>
+                        <div style="display:flex;gap:4px;">
+                            <button class="btn-icon" onclick="calendarChangeMonth(-1)">
+                                <span class="material-icons-round">chevron_left</span>
+                            </button>
+                            <button class="btn-icon" onclick="calendarChangeMonth(0)" title="Dzisiaj">
+                                <span class="material-icons-round">today</span>
+                            </button>
+                            <button class="btn-icon" onclick="calendarChangeMonth(1)">
+                                <span class="material-icons-round">chevron_right</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mini-calendar" id="mini-calendar">
+                        <!-- Wypełniane przez JS -->
                     </div>
                 </div>
 

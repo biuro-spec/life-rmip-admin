@@ -416,6 +416,80 @@ body {
 .stat-card.highlight .stat-label { color: rgba(255,255,255,0.8); }
 .stat-card.highlight .stat-change { background: rgba(255,255,255,0.2); color: var(--white); }
 
+/* ==================== MINI CALENDAR ==================== */
+.mini-calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.mini-calendar .cal-header {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 6px 0;
+    text-transform: uppercase;
+}
+
+.mini-calendar .cal-day {
+    position: relative;
+    text-align: center;
+    padding: 8px 2px 6px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.15s;
+    min-height: 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.mini-calendar .cal-day:hover {
+    background: var(--bg-subtle);
+}
+
+.mini-calendar .cal-day.today {
+    background: var(--primary-10);
+    font-weight: 700;
+}
+
+.mini-calendar .cal-day.today .cal-day-num {
+    color: var(--primary);
+}
+
+.mini-calendar .cal-day.other-month {
+    opacity: 0.3;
+}
+
+.mini-calendar .cal-day-num {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1;
+}
+
+.mini-calendar .cal-day-count {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--white);
+    background: var(--primary);
+    border-radius: 10px;
+    padding: 1px 5px;
+    min-width: 16px;
+    line-height: 14px;
+}
+
+.mini-calendar .cal-day-count.none {
+    background: transparent;
+    color: transparent;
+}
+
+.mini-calendar .cal-day.weekend .cal-day-num {
+    color: var(--text-secondary);
+}
+
 /* ==================== PANELS ==================== */
 .panel {
     background: var(--surface);

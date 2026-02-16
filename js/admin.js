@@ -8,7 +8,7 @@
 // ============================================================
 
 const viewTitles = {
-    'dashboard': 'Dashboard',
+    'dashboard': 'Panel główny',
     'new-order': 'Nowe zlecenie',
     'orders': 'Wszystkie zlecenia',
     'calculator': 'Kalkulator cen',
@@ -507,6 +507,9 @@ function renderDashboard(orders) {
 
     // Pracownicy
     renderWorkersStatus();
+
+    // Kalendarz miesięczny
+    loadCalendar();
 }
 
 async function renderWorkersStatus() {
@@ -538,6 +541,111 @@ async function renderWorkersStatus() {
             }).join('');
         }
     }
+}
+
+// ============================================================
+// MINI KALENDARZ MIESIĘCZNY
+// ============================================================
+
+var calendarMonth = new Date().getMonth();
+var calendarYear = new Date().getFullYear();
+var calendarOrderCounts = {}; // { 'YYYY-MM-DD': count }
+
+function calendarChangeMonth(delta) {
+    if (delta === 0) {
+        // Reset do bieżącego miesiąca
+        calendarMonth = new Date().getMonth();
+        calendarYear = new Date().getFullYear();
+    } else {
+        calendarMonth += delta;
+        if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+        if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+    }
+    loadCalendar();
+}
+
+async function loadCalendar() {
+    var monthNames = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+    document.getElementById('cal-month-title').textContent = monthNames[calendarMonth] + ' ' + calendarYear;
+
+    // Pobierz zlecenia na cały miesiąc
+    calendarOrderCounts = {};
+    if (API_MODE === 'api') {
+        var mm = String(calendarMonth + 1).padStart(2, '0');
+        var result = await apiGet({ action: 'getOrders', month: mm, year: String(calendarYear) });
+        if (result && Array.isArray(result)) {
+            result.forEach(function(o) {
+                var d = o.Data_Transportu || o.date || '';
+                if (d) {
+                    calendarOrderCounts[d] = (calendarOrderCounts[d] || 0) + 1;
+                }
+            });
+        }
+    }
+
+    renderCalendar();
+}
+
+function renderCalendar() {
+    var container = document.getElementById('mini-calendar');
+    var html = '';
+
+    // Nagłówki dni tygodnia
+    var dayNames = ['Pn','Wt','Śr','Cz','Pt','Sb','Nd'];
+    dayNames.forEach(function(d) {
+        html += '<div class="cal-header">' + d + '</div>';
+    });
+
+    var firstDay = new Date(calendarYear, calendarMonth, 1);
+    var lastDay = new Date(calendarYear, calendarMonth + 1, 0);
+    var startDow = (firstDay.getDay() + 6) % 7; // Poniedziałek = 0
+
+    var today = formatDateISO(new Date());
+
+    // Dni z poprzedniego miesiąca
+    var prevMonthLast = new Date(calendarYear, calendarMonth, 0).getDate();
+    for (var i = startDow - 1; i >= 0; i--) {
+        var dayNum = prevMonthLast - i;
+        html += '<div class="cal-day other-month"><span class="cal-day-num">' + dayNum + '</span></div>';
+    }
+
+    // Dni bieżącego miesiąca
+    for (var d = 1; d <= lastDay.getDate(); d++) {
+        var dateStr = calendarYear + '-' + String(calendarMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+        var count = calendarOrderCounts[dateStr] || 0;
+        var isToday = dateStr === today;
+        var dow = (new Date(calendarYear, calendarMonth, d).getDay());
+        var isWeekend = (dow === 0 || dow === 6);
+
+        var classes = 'cal-day';
+        if (isToday) classes += ' today';
+        if (isWeekend) classes += ' weekend';
+
+        html += '<div class="' + classes + '" onclick="calendarDayClick(\'' + dateStr + '\')">';
+        html += '<span class="cal-day-num">' + d + '</span>';
+        if (count > 0) {
+            html += '<span class="cal-day-count">' + count + '</span>';
+        } else {
+            html += '<span class="cal-day-count none">0</span>';
+        }
+        html += '</div>';
+    }
+
+    // Uzupełnienie do końca siatki
+    var totalCells = startDow + lastDay.getDate();
+    var remaining = (7 - totalCells % 7) % 7;
+    for (var r = 1; r <= remaining; r++) {
+        html += '<div class="cal-day other-month"><span class="cal-day-num">' + r + '</span></div>';
+    }
+
+    container.innerHTML = html;
+}
+
+function calendarDayClick(dateStr) {
+    // Przejdź do widoku zleceń przefiltrowanych na tę datę
+    var dateInput = document.getElementById('filter-date');
+    if (dateInput) dateInput.value = dateStr;
+    showView('orders');
 }
 
 // ============================================================
